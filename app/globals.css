@@ -21,3 +21,17 @@
 .recipe-card-compact .recipe-symbol { width:36%; font-size:58px; }
 .recipe-card-compact .recipe-details { max-height:135px; overflow:auto; }
 @media (max-width:800px) { .recipe-card-compact .recipe-symbol { width:100%; min-height:170px; } }
+
+.recipe-actions { display:flex; align-items:center; gap:2px; }
+.edit-button,.admin-login,.admin-controls button { display:inline-flex; align-items:center; justify-content:center; gap:7px; border:1px solid var(--line); color:var(--wine); background:#fffdf8; font-size:12px; font-weight:800; }
+.edit-button { width:30px; height:30px; border-radius:50%; }
+.edit-button:hover { border-color:var(--wine); background:#f5e9e0; }
+.admin-login { min-height:38px; padding:0 12px; border-radius:999px; }
+.admin-controls { display:flex; align-items:center; gap:9px; color:var(--sage); font-size:12px; font-weight:800; white-space:nowrap; }
+.admin-controls span { display:flex; align-items:center; gap:5px; }
+.admin-controls button { min-height:34px; padding:0 10px; border-radius:999px; }
+.auth-dialog { max-width:420px!important; border-color:#e4d8ca!important; background:#fffdf8!important; }
+.form-error { margin:0; color:#a72e43; font-size:13px; }
+@media (max-width:1050px) { .site-header { padding-inline:24px; gap:14px; }.main-nav { margin-right:0; gap:18px; }.hero,.cookbook { margin-inline:0; }.recipes-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:800px) { .site-header { flex-wrap:wrap; }.brand { margin-right:auto; }.admin-login,.admin-controls { order:2; }.add-button { order:3; margin-left:auto; }.main-nav { display:flex; order:4; width:100%; justify-content:center; padding-top:2px; }.hero { padding:42px 20px; }.cookbook { padding-inline:16px; }.recipes-grid { grid-template-columns:1fr; }.recipes-grid .recipe-card { min-height:0; }.recipe-details { font-size:13px; }.recipe-card-compact .recipe-content { padding:28px 22px; } }
+@media (max-width:480px) { .site-header { padding-inline:14px; }.brand { font-size:16px; }.brand em { font-size:20px; }.admin-login { width:38px; padding:0; font-size:0; }.admin-login svg { width:16px; }.admin-controls span { display:none; }.add-button { height:38px!important; }.hero h1 { font-size:40px; }.hero-copy { font-size:15px; }.season-card { width:100%; }.toolbar h2 { font-size:33px; }.filter-row { margin-block:22px; gap:7px; }.filter-row button { padding:8px 12px; }.recipes-grid .recipe-card { flex-direction:column; }.recipes-grid .recipe-symbol { width:100%; min-height:88px; height:88px; flex-basis:88px; }.recipe-content { padding:18px 17px 15px; }.recipe-meta { flex-wrap:wrap; }.featured-copy { padding:29px 20px; } }

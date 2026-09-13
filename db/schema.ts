@@ -10,5 +10,6 @@ export const recipes = pgTable("recipes", {
   emoji: text("emoji").notNull().default("🍽️"),
   ingredients: text("ingredients").notNull().default(""),
   steps: text("steps").notNull().default(""),
+  sourceId: text("source_id").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

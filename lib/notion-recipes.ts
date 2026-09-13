@@ -1,5 +1,5 @@
 export type Recipe = {
-  id: string;
+  id: string | number;
   title: string;
   category: string;
   description: string;
@@ -8,6 +8,7 @@ export type Recipe = {
   emoji: string;
   ingredients: string;
   steps: string;
+  sourceId?: string;
   featured?: boolean;
 };
 
