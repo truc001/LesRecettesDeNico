@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public recipes only; no account data. Eight required bounded text fields,
+    // featured (bool), createdAt (immutable timestamp), optional sourceId
+    // (immutable string <=128). List reads are paginated; search is client-side.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'appcraft31@gmail.com'
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function validText(value, minimum, maximum) {
+      return value is string && value.size() >= minimum && value.size() <= maximum;
+    }
+    function isValidRecipe(data) {
+      return data.keys().hasAll(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'featured', 'createdAt'])
+        && data.keys().hasOnly(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'featured', 'createdAt', 'sourceId'])
+        && validText(data.title, 1, 200)
+        && validText(data.category, 1, 80)
+        && validText(data.description, 1, 1000)
+        && validText(data.duration, 1, 80)
+        && validText(data.servings, 1, 80)
+        && validText(data.emoji, 1, 16)
+        && validText(data.ingredients, 0, 4000)
+        && validText(data.steps, 0, 4000)
+        && data.featured is bool
+        && data.createdAt is timestamp
+        && (!('sourceId' in data) || validText(data.sourceId, 1, 128));
+    }
+    match /recipes/{recipeId} {
+      // Reading is public, as on the existing website.
+      allow read: if true;
+      allow create: if isAdmin() && isValidRecipe(request.resource.data)
+        && recipeId.matches('^[a-zA-Z0-9_-]{1,128}$')
+        && request.resource.data.createdAt <= request.time
+        && request.resource.data.createdAt > request.time - duration.value(5, 'm');
+      allow update: if isAdmin() && isValidRecipe(request.resource.data)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt', 'sourceId']);
+      allow delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

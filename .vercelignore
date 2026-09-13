@@ -8,3 +8,6 @@ scripts
 .openai
 .vinext
 .env*
+tests
+*-debug.log
+tsconfig.tsbuildinfo
