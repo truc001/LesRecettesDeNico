@@ -4,9 +4,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Les recettes de Nico",
   description: "Le carnet personnel de recettes de Nico.",
-  other: {
-    "codex-preview": "development",
-  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

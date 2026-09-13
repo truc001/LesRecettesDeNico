@@ -1,0 +1,10 @@
+dist
+build
+drizzle
+examples
+scripts
+.wrangler
+.sites-runtime
+.openai
+.vinext
+.env*
