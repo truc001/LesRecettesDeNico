@@ -31,7 +31,6 @@ export default function Home() {
   const [authOpen, setAuthOpen] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
-  const [authToken, setAuthToken] = useState("");
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   useEffect(() => { fetch("/api/recipes").then((response) => response.ok ? response.json() : Promise.reject()).then((data: { recipes: Recipe[] }) => { if (data.recipes.length) setRecipes(data.recipes); }).catch(() => setNotice("Vos nouvelles recettes seront enregistrées dès que le carnet sera connecté.")); }, []);
   useEffect(() => {
@@ -39,7 +38,6 @@ export default function Home() {
       const auth = getFirebaseAuth();
       return onAuthStateChanged(auth, async (user) => {
         const token = user ? await user.getIdToken() : "";
-        setAuthToken(token);
         if (!token) return setIsAdmin(false);
         const response = await fetch("/api/auth/session", { headers: { Authorization: `Bearer ${token}` } });
         const data = await response.json() as { isAdmin?: boolean };
@@ -60,7 +58,7 @@ export default function Home() {
       async execute(input) {
         const recipeInput = input as Partial<Omit<Recipe, "id" | "emoji">>;
         if (!recipeInput.title?.trim()) throw new Error("Le nom de la recette est requis.");
-        const response = await fetch("/api/recipes", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ ...recipeInput, emoji: "🍽️" }) });
+        const response = await fetch("/api/recipes", { method: "POST", headers: { "Content-Type": "application/json", ...await adminHeaders() }, body: JSON.stringify({ ...recipeInput, emoji: "🍽️" }) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Impossible d’enregistrer la recette.");
         setRecipes((current) => [data.recipe, ...current]);
@@ -69,9 +67,14 @@ export default function Home() {
       },
     }, { signal: lifecycle.signal })).catch(() => undefined);
     return () => lifecycle.abort();
-  }, [authToken, isAdmin]);
+  }, [isAdmin]);
   const categories = ["Toutes", ...Array.from(new Set(recipes.map((recipe) => recipe.category)))];
   const filteredRecipes = useMemo(() => recipes.filter((recipe) => { const inCategory = activeCategory === "Toutes" || recipe.category === activeCategory; return inCategory && `${recipe.title} ${recipe.description} ${recipe.category}`.toLowerCase().includes(query.trim().toLowerCase()); }), [activeCategory, query, recipes]);
+  async function adminHeaders() {
+    const token = await getFirebaseAuth().currentUser?.getIdToken();
+    if (!token) { setIsAdmin(false); throw new Error("Session administrateur expirée. Reconnectez-vous."); }
+    return { Authorization: `Bearer ${token}` };
+  }
   async function logIn() {
     setLoggingIn(true); setLoginError("");
     try {
@@ -81,15 +84,15 @@ export default function Home() {
       const response = await fetch("/api/auth/session", { headers: { Authorization: `Bearer ${token}` } });
       const data = await response.json() as { isAdmin?: boolean };
       if (!data.isAdmin) { await signOut(auth); throw new Error("Ce compte Google n’est pas autorisé à administrer le carnet."); }
-      setAuthToken(token); setIsAdmin(true); setAuthOpen(false); setNotice("Connexion Google administrateur activée.");
+      setIsAdmin(true); setAuthOpen(false); setNotice("Connexion Google administrateur activée.");
     } catch (error) { setLoginError(error instanceof Error ? error.message : "Connexion Google impossible."); } finally { setLoggingIn(false); }
   }
-  async function logOut() { try { await signOut(getFirebaseAuth()); } finally { setAuthToken(""); setIsAdmin(false); setNotice("Connexion Google administrateur désactivée."); } }
+  async function logOut() { try { await signOut(getFirebaseAuth()); } finally { setIsAdmin(false); setNotice("Connexion Google administrateur désactivée."); } }
   function openEditor(recipe?: Recipe) { setEditingRecipe(recipe ?? null); setDialogOpen(true); }
   async function saveRecipe(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = new FormData(event.currentTarget); const title = String(form.get("title") || "").trim(); if (!title) return;
     setSaving(true); setNotice(""); const payload = { title, category: String(form.get("category") || "Mes recettes"), description: String(form.get("description") || "Une recette à essayer."), duration: String(form.get("duration") || "À préciser"), servings: String(form.get("servings") || "À préciser"), ingredients: String(form.get("ingredients") || ""), steps: String(form.get("steps") || ""), emoji: editingRecipe?.emoji ?? "🍽️" };
-    try { const response = await fetch("/api/recipes", { method: editingRecipe ? "PATCH" : "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ ...payload, ...(editingRecipe ? { id: editingRecipe.id, sourceId: typeof editingRecipe.id === "string" ? editingRecipe.id : editingRecipe.sourceId } : {}) }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); if (editingRecipe) setRecipes((current) => current.map((recipe) => recipe.id === editingRecipe.id || recipe.id === data.recipe.sourceId ? { ...recipe, ...data.recipe } : recipe)); else setRecipes((current) => [data.recipe, ...current]); setDialogOpen(false); setEditingRecipe(null); setNotice(editingRecipe ? "Recette mise à jour." : "Recette enregistrée dans votre carnet."); } catch (error) { setNotice(error instanceof Error ? error.message : "Impossible d’enregistrer cette recette pour le moment."); } finally { setSaving(false); }
+    try { const response = await fetch("/api/recipes", { method: editingRecipe ? "PATCH" : "POST", headers: { "Content-Type": "application/json", ...await adminHeaders() }, body: JSON.stringify({ ...payload, ...(editingRecipe ? { id: editingRecipe.id, sourceId: typeof editingRecipe.id === "string" ? editingRecipe.id : editingRecipe.sourceId } : {}) }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); if (editingRecipe) setRecipes((current) => current.map((recipe) => recipe.id === editingRecipe.id || recipe.id === data.recipe.sourceId ? { ...recipe, ...data.recipe } : recipe)); else setRecipes((current) => [data.recipe, ...current]); setDialogOpen(false); setEditingRecipe(null); setNotice(editingRecipe ? "Recette mise à jour." : "Recette enregistrée dans votre carnet."); } catch (error) { setNotice(error instanceof Error ? error.message : "Impossible d’enregistrer cette recette pour le moment."); } finally { setSaving(false); }
   }
   const featured = recipes.find((recipe) => recipe.featured) ?? recipes[0];
   const regularRecipes = filteredRecipes.filter((recipe) => recipe.id !== featured?.id);
