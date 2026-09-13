@@ -15,18 +15,26 @@ Les recettes sont stockées dans une base Neon Postgres. Dans Vercel, ajoutez l�
 
 Ensuite, appliquez la migration présente dans `drizzle-neon/` à la base Neon avant d’ajouter les premières recettes.
 
-## Administration
+## Administration avec Google
 
-La lecture du carnet est publique. Seul l’administrateur peut ajouter ou modifier une recette : les routes d’écriture vérifient une session signée côté serveur.
+La lecture du carnet est publique. Les ajouts et modifications sont réservés aux comptes Google listés dans `ADMIN_EMAILS`. Le serveur Vercel vérifie chaque jeton Firebase avant toute écriture.
 
-Ajoutez ces variables d’environnement dans Vercel (Production, Preview et Development) :
+1. Dans Firebase Authentication, activez le fournisseur **Google**.
+2. Ajoutez `localhost` et votre domaine Vercel dans **Authorized domains**.
+3. Dans Vercel, ajoutez les variables ci-dessous pour Production, Preview et Development. Les valeurs `NEXT_PUBLIC_*` sont celles de l’application Web Firebase ; `FIREBASE_ADMIN_SERVICE_ACCOUNT` est le JSON complet d’un compte de service et doit rester secret.
 
 ```bash
-ADMIN_PASSWORD=un-mot-de-passe-long-et-unique
-AUTH_SECRET=une-chaine-aleatoire-d-au-moins-32-caracteres
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+FIREBASE_ADMIN_SERVICE_ACCOUNT='{"type":"service_account", "project_id":"..."}'
+ADMIN_EMAILS=votre-adresse-google@example.com
 ```
 
-`AUTH_SECRET` doit rester secret et ne doit jamais être exposé dans une variable commençant par `NEXT_PUBLIC_`.
+Ne placez jamais `FIREBASE_ADMIN_SERVICE_ACCOUNT` dans une variable commençant par `NEXT_PUBLIC_`.
 
 ## Déploiement
 

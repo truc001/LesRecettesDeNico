@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { recipes } from "@/db/schema";
-import { isAdmin } from "@/lib/admin-auth";
+import { getFirebaseAdmin } from "@/lib/firebase-admin";
 import { notionRecipes } from "@/lib/notion-recipes";
 
 function safeText(value: unknown, fallback = "") { return typeof value === "string" ? value.trim().slice(0, 4000) || fallback : fallback; }
@@ -21,7 +21,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!await isAdmin()) return Response.json({ error: "Accès administrateur requis." }, { status: 401 });
+  if (!await getFirebaseAdmin(request)) return Response.json({ error: "Accès administrateur requis." }, { status: 401 });
   try {
     const values = valuesFrom(await request.json() as Record<string, unknown>);
     if (!values.title) return Response.json({ error: "Le nom de la recette est requis." }, { status: 400 });
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  if (!await isAdmin()) return Response.json({ error: "Accès administrateur requis." }, { status: 401 });
+  if (!await getFirebaseAdmin(request)) return Response.json({ error: "Accès administrateur requis." }, { status: 401 });
   try {
     const body = await request.json() as Record<string, unknown>;
     const values = valuesFrom(body);
