@@ -1,4 +1,4 @@
-import { getFirebaseAdmin } from "@/lib/firebase-admin";
+import { getFirebaseAdmin } from "@/lib/firebase-token";
 
 export async function GET(request: Request) {
   const admin = await getFirebaseAdmin(request);

@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { recipes } from "@/db/schema";
-import { getFirebaseAdmin } from "@/lib/firebase-admin";
+import { getFirebaseAdmin } from "@/lib/firebase-token";
 import { notionRecipes } from "@/lib/notion-recipes";
 
 function safeText(value: unknown, fallback = "") { return typeof value === "string" ? value.trim().slice(0, 4000) || fallback : fallback; }
