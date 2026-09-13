@@ -1,8 +1,7 @@
-import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 
-export const recipes = sqliteTable("recipes", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const recipes = pgTable("recipes", {
+  id: serial("id").primaryKey(),
   title: text("title").notNull(),
   category: text("category").notNull().default("Mes recettes"),
   description: text("description").notNull().default(""),
@@ -11,5 +10,5 @@ export const recipes = sqliteTable("recipes", {
   emoji: text("emoji").notNull().default("🍽️"),
   ingredients: text("ingredients").notNull().default(""),
   steps: text("steps").notNull().default(""),
-  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
