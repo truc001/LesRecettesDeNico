@@ -2,7 +2,7 @@ import type { Recipe } from "./notion-recipes";
 
 type Value = { stringValue?: string; booleanValue?: boolean; timestampValue?: string };
 type Document = { name: string; fields: Record<string, Value> };
-export type RecipeValues = Pick<Recipe, "title" | "category" | "description" | "duration" | "servings" | "emoji" | "ingredients" | "steps">;
+export type RecipeValues = Pick<Recipe, "title" | "category" | "description" | "duration" | "servings" | "emoji" | "ingredients" | "steps" | "contributor">;
 
 export class FirestoreError extends Error {
   constructor(public status: number) { super("Firestore request failed"); }
@@ -24,6 +24,7 @@ function fromDocument(document: Document): Recipe & { createdAt?: string } {
     emoji: f.emoji?.stringValue ?? "",
     ingredients: f.ingredients?.stringValue ?? "",
     steps: f.steps?.stringValue ?? "",
+    ...(f.contributor?.stringValue ? { contributor: f.contributor.stringValue } : {}),
     featured: f.featured?.booleanValue ?? false,
     createdAt: f.createdAt?.timestampValue,
     ...(f.sourceId?.stringValue ? { sourceId: f.sourceId.stringValue } : {}),
@@ -45,7 +46,7 @@ export async function listFirestoreRecipes(): Promise<Recipe[]> {
   return recipes.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "") || String(a.id).localeCompare(String(b.id)));
 }
 function fieldsFrom(values: RecipeValues): Record<string, Value> {
-  return Object.fromEntries(Object.entries(values).map(([key, value]) => [key, { stringValue: value }]));
+  return Object.fromEntries(Object.entries(values).filter((entry): entry is [string, string] => typeof entry[1] === "string").map(([key, value]) => [key, { stringValue: value }]));
 }
 async function write(url: URL | string, method: string, fields: Record<string, Value>, authorization: string) {
   // Forward the user's Firebase ID token: Firestore Security Rules apply.

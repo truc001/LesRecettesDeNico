@@ -8,6 +8,7 @@ export type Recipe = {
   emoji: string;
   ingredients: string;
   steps: string;
+  contributor?: string;
   sourceId?: string;
   featured?: boolean;
 };

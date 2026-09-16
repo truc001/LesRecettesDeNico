@@ -1,44 +1,130 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Public recipes only; no account data. Eight required bounded text fields,
-    // featured (bool), createdAt (immutable timestamp), optional sourceId
-    // (immutable string <=128). List reads are paginated; search is client-side.
-    function isAdmin() {
-      return request.auth != null
+    // ===============================================================
+    // Assumed data model
+    // ===============================================================
+    // recipes/{recipeId}
+    //   title, category, description, duration, servings, emoji,
+    //   ingredients, steps: bounded safe strings
+    //   contributor: optional bounded safe string
+    //   featured: bool; createdAt: immutable timestamp
+    //   sourceId: optional immutable string
+    // Public read; administrator-only create/update; no delete.
+    //
+    // recipeSubmissions/{submissionId}
+    //   same recipe strings plus contributor
+    //   submitterUid: immutable Firebase UID
+    //   status: pending | approved | rejected
+    //   createdAt: immutable timestamp
+    //   reviewedAt and recipeId: added only by the administrator
+    // Google user create; administrator-only read/moderation; no delete.
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isGoogleUser() {
+      return isAuthenticated()
         && request.auth.token.email_verified == true
-        && request.auth.token.email == 'appcraft31@gmail.com'
         && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
-    function validText(value, minimum, maximum) {
-      return value is string && value.size() >= minimum && value.size() <= maximum;
+
+    function isAdmin() {
+      return isGoogleUser()
+        && request.auth.token.email == 'appcraft31@gmail.com';
     }
+
+    function isRecent(value) {
+      return value is timestamp
+        && value <= request.time
+        && value > request.time - duration.value(5, 'm');
+    }
+
+    function validSafeText(value, minimum, maximum) {
+      return value is string
+        && value.size() >= minimum
+        && value.size() <= maximum
+        && value.matches('^[^<>`\\x00-\\x09\\x0B-\\x1F\\x7F-\\x9F\\x{200B}-\\x{200F}\\x{202A}-\\x{202E}\\x{2066}-\\x{2069}\\x{FEFF}]*$')
+        && !value.matches('(?is).*(javascript|vbscript|data)[ ]*:.*');
+    }
+
+    function hasValidRecipeText(data) {
+      return validSafeText(data.title, 1, 200)
+        && validSafeText(data.category, 1, 80)
+        && validSafeText(data.description, 1, 1000)
+        && validSafeText(data.duration, 1, 80)
+        && validSafeText(data.servings, 1, 80)
+        && validSafeText(data.emoji, 1, 16)
+        && validSafeText(data.ingredients, 0, 4000)
+        && validSafeText(data.steps, 0, 4000)
+        && (!('contributor' in data) || validSafeText(data.contributor, 0, 60));
+    }
+
     function isValidRecipe(data) {
       return data.keys().hasAll(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'featured', 'createdAt'])
-        && data.keys().hasOnly(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'featured', 'createdAt', 'sourceId'])
-        && validText(data.title, 1, 200)
-        && validText(data.category, 1, 80)
-        && validText(data.description, 1, 1000)
-        && validText(data.duration, 1, 80)
-        && validText(data.servings, 1, 80)
-        && validText(data.emoji, 1, 16)
-        && validText(data.ingredients, 0, 4000)
-        && validText(data.steps, 0, 4000)
+        && data.keys().hasOnly(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'contributor', 'featured', 'createdAt', 'sourceId'])
+        && hasValidRecipeText(data)
         && data.featured is bool
         && data.createdAt is timestamp
-        && (!('sourceId' in data) || validText(data.sourceId, 1, 128));
+        && (!('sourceId' in data) || validSafeText(data.sourceId, 1, 128));
     }
+
+    function hasValidSubmissionText(data) {
+      return validSafeText(data.title, 3, 200)
+        && validSafeText(data.category, 1, 80)
+        && validSafeText(data.description, 1, 1000)
+        && validSafeText(data.duration, 1, 80)
+        && validSafeText(data.servings, 1, 80)
+        && validSafeText(data.emoji, 1, 16)
+        && validSafeText(data.ingredients, 3, 4000)
+        && validSafeText(data.steps, 3, 4000)
+        && validSafeText(data.contributor, 0, 60)
+        && validSafeText(data.submitterUid, 1, 128);
+    }
+
+    function isValidSubmission(data) {
+      return data.keys().hasAll(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'contributor', 'submitterUid', 'status', 'createdAt'])
+        && data.keys().hasOnly(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'contributor', 'submitterUid', 'status', 'createdAt', 'reviewedAt', 'recipeId'])
+        && hasValidSubmissionText(data)
+        && data.createdAt is timestamp
+        && (
+          (data.status == 'pending' && !('reviewedAt' in data) && !('recipeId' in data))
+          || (data.status == 'approved' && data.reviewedAt is timestamp && validSafeText(data.recipeId, 1, 128) && data.recipeId.matches('^community-[a-zA-Z0-9_-]{1,100}$'))
+          || (data.status == 'rejected' && data.reviewedAt is timestamp && data.recipeId == '')
+        );
+    }
+
     match /recipes/{recipeId} {
-      // Reading is public, as on the existing website.
       allow read: if true;
-      allow create: if isAdmin() && isValidRecipe(request.resource.data)
+      allow create: if isAdmin()
+        && isValidRecipe(request.resource.data)
         && recipeId.matches('^[a-zA-Z0-9_-]{1,128}$')
-        && request.resource.data.createdAt <= request.time
-        && request.resource.data.createdAt > request.time - duration.value(5, 'm');
-      allow update: if isAdmin() && isValidRecipe(request.resource.data)
+        && isRecent(request.resource.data.createdAt);
+      allow update: if isAdmin()
+        && isValidRecipe(request.resource.data)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt', 'sourceId']);
       allow delete: if false;
     }
+
+    match /recipeSubmissions/{submissionId} {
+      allow create: if isGoogleUser()
+        && isValidSubmission(request.resource.data)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.submitterUid == request.auth.uid
+        && submissionId.matches('^[a-zA-Z0-9_-]{1,128}$')
+        && isRecent(request.resource.data.createdAt);
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['approved', 'rejected']
+        && isValidSubmission(request.resource.data)
+        && isRecent(request.resource.data.reviewedAt)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedAt', 'recipeId']);
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
