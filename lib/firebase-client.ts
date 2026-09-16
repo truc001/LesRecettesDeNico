@@ -10,14 +10,18 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-export function getFirebaseAuth() {
+export function getFirebaseApp() {
   if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId || !firebaseConfig.appId) {
-    throw new Error("Firebase Authentication doit être configuré dans les variables d’environnement.");
+    throw new Error("Firebase doit être configuré dans les variables d’environnement.");
   }
-  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  return getAuth(app);
+  return getApps().length ? getApp() : initializeApp(firebaseConfig);
+}
+
+export function getFirebaseAuth() {
+  return getAuth(getFirebaseApp());
 }
 
 export function createGoogleProvider() {

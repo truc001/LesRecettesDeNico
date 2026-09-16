@@ -5,11 +5,11 @@ const isDev = process.env.NODE_ENV !== "production";
 
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://apis.google.com`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://apis.google.com https://www.googletagmanager.com`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://lh3.googleusercontent.com",
+  "img-src 'self' data: blob: https://lh3.googleusercontent.com https://www.google-analytics.com https://www.googletagmanager.com",
   "font-src 'self' data:",
-  `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://apis.google.com${isDev ? " ws:" : ""}`,
+  `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://apis.google.com https://firebase.googleapis.com https://www.google-analytics.com https://region1.google-analytics.com${isDev ? " ws:" : ""}`,
   `frame-src https://${firebaseAuthDomain} https://accounts.google.com`,
   "frame-ancestors 'none'",
   "object-src 'none'",
