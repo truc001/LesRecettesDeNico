@@ -52,7 +52,7 @@ La lecture du carnet est publique. Le serveur Vercel vérifie chaque jeton Fireb
 
 L’administrateur est défini à un seul endroit : la fonction `isAdmin()` de `firestore.rules`. Pour le changer, modifiez cette adresse et redéployez les règles. L’ancienne variable `ADMIN_EMAILS` n’est plus lue et peut être retirée de Vercel.
 
-Depuis le site, l’administrateur peut ajouter, modifier et supprimer une recette, cocher « Le choix de Nico » et valider ou refuser les propositions.
+Depuis le site, l’administrateur peut ajouter, modifier et supprimer une recette, cocher « Le choix de Nico » et valider ou refuser les propositions. Chaque recette peut porter une étiquette libre (par exemple `deNico`), affichée sur sa carte et proposée comme filtre dans le carnet.
 
 1. Dans Firebase Authentication, activez le fournisseur **Google**.
 2. Ajoutez `localhost` et votre domaine Vercel dans **Authorized domains**.

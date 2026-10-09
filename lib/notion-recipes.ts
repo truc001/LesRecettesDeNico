@@ -9,6 +9,8 @@ export type Recipe = {
   ingredients: string;
   steps: string;
   contributor?: string;
+  /** Free label grouping recipes, e.g. "deNico". */
+  tag?: string;
   sourceId?: string;
   featured?: boolean;
 };

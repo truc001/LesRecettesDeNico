@@ -26,6 +26,7 @@ const normalizeSearch = (value: string) => value.normalize("NFD").replace(/[\u03
 export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]; loadError: boolean }) {
   const [recipes, setRecipes] = useState(initialRecipes);
   const [activeCategory, setActiveCategory] = useState(ALL);
+  const [activeTag, setActiveTag] = useState("");
   const [query, setQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [notice, setNotice] = useState("");
@@ -60,13 +61,15 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
   }, [isAdmin]);
 
   const categories = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.category))), [recipes]);
+  const tags = useMemo(() => Array.from(new Set(recipes.flatMap((recipe) => recipe.tag ? [recipe.tag] : []))), [recipes]);
   const filteredRecipes = useMemo(() => {
     const search = normalizeSearch(query.trim());
     return recipes.filter((recipe) => (activeCategory === ALL || recipe.category === activeCategory)
+      && (!activeTag || recipe.tag === activeTag)
       && (!favoritesOnly || favorites.includes(recipeKey(recipe)))
-      && normalizeSearch(`${recipe.title} ${recipe.description} ${recipe.category} ${recipe.ingredients} ${recipe.contributor ?? ""}`).includes(search),
+      && normalizeSearch(`${recipe.title} ${recipe.description} ${recipe.category} ${recipe.ingredients} ${recipe.contributor ?? ""} ${recipe.tag ?? ""}`).includes(search),
     ).sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
-  }, [activeCategory, query, recipes, favoritesOnly, favorites]);
+  }, [activeCategory, activeTag, query, recipes, favoritesOnly, favorites]);
 
   async function signInViewer() { await signInWithPopup(getFirebaseAuth(), createGoogleProvider()); }
   async function logOut() { try { await signOut(getFirebaseAuth()); } finally { setIsAdmin(false); } }
@@ -82,7 +85,7 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
     setRecipes((current) => current.filter((recipe) => recipe.id !== deleted.id));
     setNotice(`« ${deleted.title} » a été retirée du carnet.`);
   }
-  function showEverything() { setQuery(""); setActiveCategory(ALL); setFavoritesOnly(false); }
+  function showEverything() { setQuery(""); setActiveCategory(ALL); setActiveTag(""); setFavoritesOnly(false); }
 
   const resultsLabel = loadError ? "Le carnet est momentanément indisponible."
     : `${filteredRecipes.length} recette${filteredRecipes.length !== 1 ? "s" : ""}${favoritesOnly ? " dans vos favoris" : " à découvrir"}${query ? ` pour « ${query} »` : ""}`;
@@ -102,7 +105,7 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
       {isAdmin && <ModerationDialog onPublished={(recipe) => { setRecipes((current) => [recipe, ...current]); setNotice("La recette proposée est maintenant publiée."); }} />}
       {isAdmin && <Button className="add-button" onClick={() => openEditor()}><Plus size={18} /> Ajouter une recette</Button>}
     </header>
-    {isAdmin && <RecipeEditorDialog open={editorOpen} onOpenChange={setEditorOpen} recipe={editingRecipe} categories={categories} onSaved={recipeSaved} onDeleted={recipeDeleted} />}
+    {isAdmin && <RecipeEditorDialog open={editorOpen} onOpenChange={setEditorOpen} recipe={editingRecipe} categories={categories} tags={tags} onSaved={recipeSaved} onDeleted={recipeDeleted} />}
     <main id="top">
       <Hero recipeCount={loadError ? null : recipes.length} onExplore={() => setFavoritesOnly(false)} />
       <section className="cookbook" id="carnet" tabIndex={-1} aria-labelledby="collection-title">
@@ -122,6 +125,7 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
         <div className="collection-filters">
           <div className="filter-row" role="group" aria-label="Filtrer par catégorie">
             {[ALL, ...categories].map((category) => <button key={category} aria-pressed={activeCategory === category} onClick={() => setActiveCategory(category)} className={activeCategory === category ? "filter-active" : ""}>{category}<span>{category === ALL ? recipes.length : recipes.filter((recipe) => recipe.category === category).length}</span></button>)}
+            {tags.map((tag) => <button key={`#${tag}`} aria-pressed={activeTag === tag} onClick={() => setActiveTag(activeTag === tag ? "" : tag)} className={`tag-filter ${activeTag === tag ? "filter-active" : ""}`}>#{tag}<span>{recipes.filter((recipe) => recipe.tag === tag).length}</span></button>)}
           </div>
           <button className={`favorites-filter ${favoritesOnly ? "filter-active" : ""}`} aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)}><Heart size={17} aria-hidden="true" fill={favoritesOnly ? "currentColor" : "none"} /> Mes favoris</button>
         </div>

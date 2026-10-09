@@ -8,7 +8,7 @@ const source = path.join(__dirname, '../lib/recipe-input.ts');
 const compiled = ts.transpileModule(fs.readFileSync(source, 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const moduleUnderTest = new Module(source);
 moduleUnderTest._compile(compiled, source);
-const { parseRecipeInput, assertAllowedKeys } = moduleUnderTest.exports;
+const { parseRecipeInput, parseRecipeTag, assertAllowedKeys } = moduleUnderTest.exports;
 const valid = { title:'Tarte aux pommes',category:'Dessert',description:'Une tarte maison',duration:'45 min',servings:'6 personnes',ingredients:'Pommes\nFarine',steps:'Mélanger\nCuire',contributor:'Nico',emoji:'assiette' };
 
 test('normalizes safe recipe text without interpreting it', () => {
@@ -31,6 +31,13 @@ test('rejects oversized, multiline single-line and incomplete content', () => {
  assert.throws(()=>parseRecipeInput({...valid,title:'x'.repeat(201)},true),/trop long/);
  assert.throws(()=>parseRecipeInput({...valid,category:'Plat\nDessert'},true),/une seule ligne/);
  assert.throws(()=>parseRecipeInput({...valid,ingredients:'x'},true),/trop court/);
+});
+
+test('accepts a short optional tag and refuses unsafe ones', () => {
+ assert.equal(parseRecipeTag('  deNico '),'deNico');
+ assert.equal(parseRecipeTag(undefined),'');
+ assert.throws(()=>parseRecipeTag('x'.repeat(41)),/trop long/);
+ assert.throws(()=>parseRecipeTag('<b>'),/caractères interdits/);
 });
 
 test('rejects schema pollution', () => {

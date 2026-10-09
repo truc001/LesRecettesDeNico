@@ -107,6 +107,7 @@ button svg { pointer-events: none; }
 .filter-row button span { font-size: 11px; opacity: .85; }
 .filter-row button:hover, .favorites-filter:hover { background: #e7eddf; }
 .filter-row .filter-active, .favorites-filter.filter-active { color: #fff; background: var(--green); border-color: var(--green); }
+.filter-row .tag-filter { border-style: dashed; }
 .results-count { margin: 20px 0; color: var(--muted); font-size: 12px; }
 .notice { padding: 14px 18px; border: 1px solid #d9c49c; background: #fff3db; color: #674617; border-radius: 10px; font-size: 14px; }
 .recipes-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 24px; }
@@ -129,6 +130,8 @@ button svg { pointer-events: none; }
 .recipe-content h3 a:hover { color: var(--orange); }
 .recipe-description { margin: 0 0 20px; color: var(--muted); font-size: 14px; line-height: 1.75; }
 .recipe-contributor { margin: -11px 0 18px; color: var(--orange); font-size: 12px; font-weight: 700; }
+.recipe-tag { margin: -8px 0 18px; color: #586847; font-size: 12px; font-weight: 700; }
+.recipe-contributor + .recipe-tag { margin-top: -12px; }
 .recipe-meta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: auto; padding-bottom: 19px; font-size: 12px; color: var(--muted); }
 .recipe-meta span, .reading-meta span { display: inline-flex; align-items: center; gap: 7px; }
 .recipe-card-bottom { display: flex; align-items: center; gap: 12px; border-top: 1px solid #e6eae1; }
@@ -193,6 +196,7 @@ footer p { margin: 0; }
 .recipe-page h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(34px, 5vw, 52px); font-weight: 400; line-height: 1.15; letter-spacing: -1.4px; overflow-wrap: anywhere; }
 .recipe-page-description { margin: 16px 0 0; color: var(--muted); font-size: 16px; line-height: 1.75; }
 .recipe-page .recipe-contributor { margin: 12px 0 0; }
+.recipe-page .recipe-tag { margin: 10px 0 0; }
 .recipe-page .reading-meta { margin-top: 8px; }
 .not-found { margin-block: 64px; }
 .not-found h1 { margin: 0 0 10px; font-family: Georgia, serif; font-size: clamp(28px, 4vw, 38px); font-weight: 400; }
