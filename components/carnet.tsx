@@ -72,6 +72,12 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
   const tags = useMemo(() => Array.from(new Set(recipes.flatMap((recipe) => recipe.tag ? [recipe.tag] : []))), [recipes]);
   // Moments that hold at least one recipe, in their fixed order.
   const moments = useMemo(() => GROUPS.map((moment) => ({ ...moment, recipes: featuredFirst(recipes.filter((recipe) => groupOf(recipe) === moment.id)) })).filter((moment) => moment.recipes.length > 0), [recipes]);
+  // One photo per moment for the top of the page: "Le choix de Nico" first, then lunch and dinner.
+  const highlights = useMemo(() => {
+    const first = (id: string) => moments.find((moment) => moment.id === id)?.recipes[0];
+    const picks = [recipes.find((recipe) => recipe.featured) ?? first("desserts"), first("soir"), first("petit-dejeuner")];
+    return picks.filter((recipe): recipe is Recipe => Boolean(recipe));
+  }, [recipes, moments]);
   const filteredRecipes = useMemo(() => featuredFirst(recipes.filter((recipe) => matchesFilters(recipe, { group, time, query, tag }) && (!favoritesOnly || favorites.includes(recipeKey(recipe))))),
     [recipes, group, time, query, tag, favoritesOnly, favorites]);
 
@@ -114,7 +120,7 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
     </SiteHeader>
     {isAdmin && <RecipeEditorDialog open={editorOpen} onOpenChange={setEditorOpen} recipe={editingRecipe} categories={categories} tags={tags} onSaved={recipeSaved} onDeleted={recipeDeleted} />}
     <main id="top">
-      {!browse.active && <Hero recipeCount={loadError ? null : recipes.length} />}
+      {!browse.active && <Hero recipes={recipes} highlights={highlights} />}
       <section className="cookbook" id="carnet" tabIndex={-1} aria-labelledby="collection-title">
         <div className="browse-bar">
           <div className="search-box">
