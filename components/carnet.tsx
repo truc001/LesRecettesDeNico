@@ -9,6 +9,7 @@ import { ModerationDialog } from "@/components/moderation-dialog";
 import { RecipeCard } from "@/components/recipe-card";
 import { RecipeEditorDialog } from "@/components/recipe-editor-dialog";
 import { ShareRecipeDialog } from "@/components/share-recipe-dialog";
+import { ShoppingListDialog } from "@/components/shopping-list-dialog";
 import { SiteBrand } from "@/components/site-brand";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
 
   const categories = useMemo(() => Array.from(new Set(recipes.map((recipe) => recipe.category))), [recipes]);
   const tags = useMemo(() => Array.from(new Set(recipes.flatMap((recipe) => recipe.tag ? [recipe.tag] : []))), [recipes]);
+  const favoriteRecipes = useMemo(() => recipes.filter((recipe) => favorites.includes(recipeKey(recipe))), [recipes, favorites]);
   const filteredRecipes = useMemo(() => {
     const search = normalizeSearch(query.trim());
     return recipes.filter((recipe) => (activeCategory === ALL || recipe.category === activeCategory)
@@ -127,7 +129,10 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
             {[ALL, ...categories].map((category) => <button key={category} aria-pressed={activeCategory === category} onClick={() => setActiveCategory(category)} className={activeCategory === category ? "filter-active" : ""}>{category}<span>{category === ALL ? recipes.length : recipes.filter((recipe) => recipe.category === category).length}</span></button>)}
             {tags.map((tag) => <button key={`#${tag}`} aria-pressed={activeTag === tag} onClick={() => setActiveTag(activeTag === tag ? "" : tag)} className={`tag-filter ${activeTag === tag ? "filter-active" : ""}`}>#{tag}<span>{recipes.filter((recipe) => recipe.tag === tag).length}</span></button>)}
           </div>
-          <button className={`favorites-filter ${favoritesOnly ? "filter-active" : ""}`} aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)}><Heart size={17} aria-hidden="true" fill={favoritesOnly ? "currentColor" : "none"} /> Mes favoris</button>
+<div className="favorites-actions">
+                      <button className={`favorites-filter ${favoritesOnly ? "filter-active" : ""}`} aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)}><Heart size={17} aria-hidden="true" fill={favoritesOnly ? "currentColor" : "none"} /> Mes favoris</button>
+            {favoriteRecipes.length > 0 && <ShoppingListDialog recipes={favoriteRecipes} />}
+          </div>
         </div>
         <p className="results-count" role="status" aria-live="polite" aria-atomic="true">{resultsLabel}</p>
         {notice && <p className="notice" role="status">{notice}</p>}

@@ -28,6 +28,10 @@ Pour faire tourner le site contre l’émulateur, définissez `FIRESTORE_EMULATO
 - `/recettes/<id>` : une page par recette, avec ses métadonnées de partage (Open Graph) et ses données structurées `Recipe`.
 - `/sitemap.xml` et `/robots.txt` sont générés automatiquement. L’adresse publique vient de `NEXT_PUBLIC_SITE_URL`, ou à défaut du domaine de production Vercel.
 
+## Favoris et liste de courses
+
+Les favoris sont conservés dans le navigateur du visiteur. Dès qu’une recette est en favori, le bouton « Liste de courses » réunit les ingrédients des recettes favorites, regroupés par recette : on coche ce qu’on a déjà, et « Copier la liste » copie ce qui reste à acheter.
+
 ## Photos des recettes
 
 Chaque recette peut avoir une photo `public/photos/<identifiant>.jpg` (900 × 600, paysage). Une recette sans photo affiche son émoji. Après avoir ajouté ou retiré une photo, lancez `npm run photos` pour mettre à jour la liste `lib/recipe-photos.ts`, puis commitez les deux.
