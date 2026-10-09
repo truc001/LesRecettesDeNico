@@ -20,10 +20,6 @@ export const metadata: Metadata = {
     images: [sharingImage],
   },
   twitter: { card: "summary_large_image" },
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-  },
 };
 
 export default function RootLayout({
