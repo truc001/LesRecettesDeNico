@@ -25,7 +25,7 @@ export function AdminSignIn({ onAdmin }: { onAdmin: () => void }) {
   }
 
   return <Dialog open={open} onOpenChange={setOpen}>
-    <DialogTrigger asChild><button className="admin-login"><LockKeyhole size={15} /> Administration</button></DialogTrigger>
+    <DialogTrigger asChild><button className="privacy-link"><LockKeyhole size={13} aria-hidden="true" /> Administration</button></DialogTrigger>
     <DialogContent className="auth-dialog">
       <DialogHeader><DialogTitle>Administration</DialogTitle><DialogDescription>Connectez-vous avec le compte Google autorisé à gérer ce carnet.</DialogDescription></DialogHeader>
       {error && <p className="form-error" role="alert">{error}</p>}

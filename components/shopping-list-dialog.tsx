@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { Recipe } from "@/lib/notion-recipes";
 import { buildShoppingList, type ShoppingItem } from "@/lib/shopping-list";
+import { recipeKey, useFavorites } from "@/lib/use-favorites";
 
 const STORAGE_KEY = "nico-shopping-checked";
 
@@ -16,14 +17,30 @@ function readChecked(): string[] {
   } catch { return []; }
 }
 
-/** Shopping list of the favorite recipes, with quantities added up. Ticked items are remembered in this browser. */
-export function ShoppingListDialog({ recipes }: { recipes: Recipe[] }) {
+/**
+ * Shopping list of the favorite recipes, with quantities added up. Ticked items
+ * are remembered in this browser. Pages that do not hold the recipes leave
+ * `recipes` out: they are fetched when the list is opened.
+ */
+export function ShoppingListDialog({ recipes }: { recipes?: Recipe[] }) {
+  const { favorites } = useFavorites();
+  const [fetched, setFetched] = useState<Recipe[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [checked, setChecked] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
-  const list = useMemo(() => buildShoppingList(recipes), [recipes]);
+  const known = recipes ?? fetched;
+  const favoriteRecipes = useMemo(() => (known ?? []).filter((recipe) => favorites.includes(recipeKey(recipe))), [known, favorites]);
+  const list = useMemo(() => buildShoppingList(favoriteRecipes), [favoriteRecipes]);
   const everything = [...list.items, ...list.extras];
   const remaining = everything.filter((item) => !checked.includes(item.key));
 
+  function opened() {
+    setChecked(readChecked()); setCopied(false);
+    if (known || favorites.length === 0) return;
+    setFailed(false);
+    fetch("/api/recipes").then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data: { recipes: Recipe[] }) => setFetched(data.recipes)).catch(() => setFailed(true));
+  }
   function save(next: string[]) {
     setChecked(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* The ticks still apply to the current visit. */ }
@@ -39,13 +56,18 @@ export function ShoppingListDialog({ recipes }: { recipes: Recipe[] }) {
     <span>{item.label}<small>{item.recipes.join(" · ")}</small></span>
   </label></li>)}</ul>;
 
-  return <Dialog onOpenChange={(open) => { if (open) { setChecked(readChecked()); setCopied(false); } }}>
-    <DialogTrigger asChild><button className="favorites-filter shopping-button"><ShoppingBasket size={17} aria-hidden="true" /> Liste de courses</button></DialogTrigger>
+  const description = favorites.length === 0 ? "Ajoutez un cœur aux recettes qui vous font envie : leurs ingrédients apparaîtront ici."
+    : failed ? "Impossible de charger les recettes pour le moment. Réessayez dans un instant."
+    : !known ? "Préparation de la liste…"
+    : `Les ingrédients de vos ${favoriteRecipes.length} recette${favoriteRecipes.length !== 1 ? "s" : ""} en favoris, quantités additionnées. Cochez ce que vous avez déjà.`;
+
+  return <Dialog onOpenChange={(open) => { if (open) opened(); }}>
+    <DialogTrigger asChild><button className="nav-button"><ShoppingBasket size={16} aria-hidden="true" /> Liste de courses</button></DialogTrigger>
     <DialogContent className="shopping-dialog">
       <DialogHeader>
         <p className="form-kicker">Mes favoris</p>
         <DialogTitle>Liste de courses</DialogTitle>
-        <DialogDescription>{everything.length === 0 ? "Ajoutez un cœur aux recettes qui vous font envie : leurs ingrédients apparaîtront ici." : `Les ingrédients de vos ${recipes.length} recette${recipes.length !== 1 ? "s" : ""} en favoris, quantités additionnées. Cochez ce que vous avez déjà.`}</DialogDescription>
+        <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       {everything.length > 0 && <>
         <p className="shopping-count" role="status">{remaining.length === 0 ? "Tout est coché, bonnes courses !" : `${remaining.length} article${remaining.length !== 1 ? "s" : ""} à acheter sur ${everything.length}`}</p>

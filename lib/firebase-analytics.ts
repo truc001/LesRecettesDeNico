@@ -42,7 +42,7 @@ export async function disableFirebaseAnalytics() {
   sdk.setAnalyticsCollectionEnabled(analytics, false);
 }
 
-export async function trackRecipeView(recipe: Recipe) {
+export async function trackRecipeView(recipe: Pick<Recipe, "id" | "title" | "category">) {
   try {
     const stored = JSON.parse(localStorage.getItem(ANALYTICS_CONSENT_KEY) ?? "null") as { choice?: string; expiresAt?: number } | null;
     if (stored?.choice !== "accepted" || !stored.expiresAt || stored.expiresAt <= Date.now()) return;
