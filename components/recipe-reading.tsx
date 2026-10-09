@@ -1,10 +1,27 @@
-import { Clock3, UsersRound } from "lucide-react";
+"use client";
+
+import { useRef, useState } from "react";
+import { ArrowRight, Clock3, RotateCcw, UsersRound } from "lucide-react";
 import type { Recipe } from "@/lib/notion-recipes";
 
 const lines = (text: string) => text.split("\n").filter(Boolean);
 
-/** Times, ingredients and steps of a recipe, shared by the dialog and the recipe page. */
+/** Times, ingredients and steps of a recipe. Ticked ingredients and the current step follow the cook, for this visit only. */
 export function RecipeReading({ recipe }: { recipe: Recipe }) {
+  const ingredients = lines(recipe.ingredients);
+  const steps = lines(recipe.steps);
+  const [checked, setChecked] = useState<number[]>([]);
+  // -1 until the cook starts following the steps.
+  const [current, setCurrent] = useState(-1);
+  const stepList = useRef<HTMLOListElement>(null);
+
+  function toggle(index: number) { setChecked(checked.includes(index) ? checked.filter((item) => item !== index) : [...checked, index]); }
+  function goTo(index: number) {
+    setCurrent(index);
+    stepList.current?.children[index]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  const finished = current === steps.length - 1;
+
   return <>
     <div className="reading-meta">
       <span><Clock3 size={18} aria-hidden="true" /> {recipe.duration === "À préciser" ? "Temps à préciser" : recipe.duration}</span>
@@ -13,12 +30,20 @@ export function RecipeReading({ recipe }: { recipe: Recipe }) {
     <div className="reading-columns">
       <section className="ingredients">
         <h3>Ingrédients</h3>
-        <p className="reading-hint">Cochez au fur et à mesure.</p>
-        <ul>{lines(recipe.ingredients).map((ingredient, index) => <li key={index}><label><input type="checkbox" /><span>{ingredient}</span></label></li>)}</ul>
+        {ingredients.length > 0 && <div className="ingredients-progress">
+          <span className="progress-track"><span style={{ width: `${checked.length / ingredients.length * 100}%` }} /></span>
+          <span role="status">{checked.length} / {ingredients.length}</span>
+        </div>}
+        <ul>{ingredients.map((ingredient, index) => <li key={index}><label><input type="checkbox" checked={checked.includes(index)} onChange={() => toggle(index)} /><span>{ingredient}</span></label></li>)}</ul>
       </section>
       <section className="preparation">
         <h3>Préparation</h3>
-        <ol>{lines(recipe.steps).map((step, index) => <li key={index}>{step}</li>)}</ol>
+        <ol ref={stepList}>{steps.map((step, index) => <li key={index} className={index === current ? "step-current" : index < current ? "step-done" : ""} aria-current={index === current ? "step" : undefined}>
+          <button type="button" onClick={() => goTo(index)}>{step}</button>
+        </li>)}</ol>
+        {steps.length > 1 && <button type="button" className="step-next" onClick={() => goTo(finished ? 0 : current + 1)}>
+          {current === -1 ? <>Suivre pas à pas <ArrowRight size={16} aria-hidden="true" /></> : finished ? <><RotateCcw size={16} aria-hidden="true" /> Revenir au début</> : <>Étape suivante <ArrowRight size={16} aria-hidden="true" /></>}
+        </button>}
       </section>
     </div>
   </>;

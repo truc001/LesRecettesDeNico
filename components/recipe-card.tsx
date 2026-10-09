@@ -14,12 +14,20 @@ function cardTone(recipe: Recipe) {
   return recipe.title.toLowerCase().includes("citron") ? "lemon" : "sand";
 }
 
-type Props = { recipe: Recipe; isAdmin?: boolean; onEdit?: (recipe: Recipe) => void; onUnsavedFavorite?: () => void };
+type Props = {
+  recipe: Recipe;
+  isAdmin?: boolean;
+  onEdit?: (recipe: Recipe) => void;
+  onUnsavedFavorite?: () => void;
+  /** Position in a grid that has just been filtered: the card enters a little after the previous one. */
+  enterIndex?: number;
+};
 
 /** A recipe in a grid. The whole card opens the recipe page: its title link is stretched over it. */
-export function RecipeCard({ recipe, isAdmin = false, onEdit, onUnsavedFavorite }: Props) {
+export function RecipeCard({ recipe, isAdmin = false, onEdit, onUnsavedFavorite, enterIndex }: Props) {
   const photo = recipePhoto(recipe.id);
-  return <article className={`recipe-card tone-${cardTone(recipe)}`}>
+  const entering = enterIndex === undefined ? undefined : { animationDelay: `${Math.min(enterIndex, 11) * 55}ms` };
+  return <article className={`recipe-card tone-${cardTone(recipe)} ${entering ? "recipe-card-entering" : ""}`} style={entering}>
     {/* Photos are already sized for the cards (900 px wide), so they are served as they are. */}
     {photo ? <div className="recipe-art recipe-photo"><Image src={photo} alt="" fill unoptimized sizes="(max-width: 480px) 100vw, (max-width: 1080px) 50vw, 400px" /></div>
       : <div className="recipe-art" aria-hidden="true"><span className="recipe-plate">{recipe.emoji}</span><span className="art-caption">Fait maison, avec plaisir</span></div>}
@@ -35,7 +43,7 @@ export function RecipeCard({ recipe, isAdmin = false, onEdit, onUnsavedFavorite 
         {recipe.servings !== "À préciser" && <span><UsersRound size={16} aria-hidden="true" /> {recipe.servings}</span>}
       </div>
       <div className="recipe-card-bottom">
-        <span className="recipe-link" aria-hidden="true">À vos fourneaux <ArrowRight size={18} /></span>
+        <span className="recipe-link" aria-hidden="true">À vos fourneaux <ArrowRight className="recipe-arrow" size={18} /></span>
         {isAdmin && onEdit && <button aria-label={`Modifier ${recipe.title}`} className="edit-button" onClick={() => onEdit(recipe)}><Pencil size={18} /></button>}
       </div>
     </div>

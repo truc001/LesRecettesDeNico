@@ -158,8 +158,9 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
             <button className="see-all" onClick={showEverything}><X size={16} aria-hidden="true" /> Tout le carnet</button>
           </div>
           <p className="results-count" role="status" aria-live="polite" aria-atomic="true">{resultsLabel}</p>
-          <div className="recipes-grid">
-            {filteredRecipes.map((recipe) => <RecipeCard key={recipe.id} recipe={recipe} {...cardProps} />)}
+          {/* A new key per set of filters replays the cascade; typing in the search box does not. */}
+          <div className="recipes-grid" key={`${group}|${time}|${tag}|${favoritesOnly}`}>
+            {filteredRecipes.map((recipe, index) => <RecipeCard key={recipe.id} recipe={recipe} enterIndex={index} {...cardProps} />)}
             {!filteredRecipes.length && <div className="empty-state">
               <Search size={30} aria-hidden="true" />
               <h3>{favoritesOnly && !query ? "Vos prochaines envies commencent ici." : "Pas encore de recette par ici."}</h3>
