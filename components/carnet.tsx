@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { signInWithPopup, signOut } from "firebase/auth";
 import { ArrowRight, ChefHat, LockKeyhole, Plus, Search, X } from "lucide-react";
 import { AdminSignIn } from "@/components/admin-sign-in";
+import { FilterSheet } from "@/components/filter-sheet";
 import { Hero } from "@/components/hero";
 import { ModerationDialog } from "@/components/moderation-dialog";
 import { RecipeCard } from "@/components/recipe-card";
@@ -123,11 +124,14 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
       {!browse.active && <Hero recipes={recipes} highlights={highlights} />}
       <section className="cookbook" id="carnet" tabIndex={-1} aria-labelledby="collection-title">
         <div className="browse-bar">
+          <div className="browse-search">
           <div className="search-box">
             <Search size={20} aria-hidden="true" />
             <label className="sr-only" htmlFor="recipe-search">Rechercher une recette ou un ingrédient</label>
             <input ref={searchInput} id="recipe-search" type="search" defaultValue={query} onChange={(event) => browse.update({ query: event.target.value }, true)} placeholder="Une recette, un ingrédient…" />
             {query && <button aria-label="Effacer la recherche" onClick={clearSearch}><X size={18} /></button>}
+          </div>
+          <FilterSheet state={{ group, time, query, tag, favoritesOnly }} moments={moments} tags={tags} resultCount={filteredRecipes.length} onChange={(patch) => browse.update(patch)} onClear={() => browse.update({ group: "", time: "", tag: "" })} />
           </div>
           <div className="filter-row" role="group" aria-label="Filtrer les recettes">
             <button aria-pressed={!group} onClick={() => browse.update({ group: "" })} className={!group ? "filter-active" : ""}>Tout<span>{recipes.length}</span></button>
@@ -147,7 +151,7 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
               <h3 id={`moment-${moment.id}`}>{moment.label}<span className="title-dot">.</span></h3>
               {moment.recipes.length > PREVIEW_SIZE && <button className="see-all" onClick={() => openMoment(moment.id)}>Tout voir <span>{moment.recipes.length}</span> <ArrowRight size={16} aria-hidden="true" /></button>}
             </div>
-            <div className="recipes-grid">{moment.recipes.slice(0, PREVIEW_SIZE).map((recipe) => <RecipeCard key={recipe.id} recipe={recipe} {...cardProps} />)}</div>
+            <div className="recipes-grid recipes-rail">{moment.recipes.slice(0, PREVIEW_SIZE).map((recipe) => <RecipeCard key={recipe.id} recipe={recipe} {...cardProps} />)}</div>
           </section>)}
           {isAdmin && <button className="add-card add-card-wide" onClick={() => openEditor()}><span><Plus size={25} aria-hidden="true" /></span><strong>La prochaine bonne idée</strong><small>Ajouter une recette au carnet</small></button>}
         </>}
@@ -159,7 +163,7 @@ export function Carnet({ initialRecipes, loadError }: { initialRecipes: Recipe[]
           </div>
           <p className="results-count" role="status" aria-live="polite" aria-atomic="true">{resultsLabel}</p>
           {/* A new key per set of filters replays the cascade; typing in the search box does not. */}
-          <div className="recipes-grid" key={`${group}|${time}|${tag}|${favoritesOnly}`}>
+          <div className="recipes-grid recipes-list" key={`${group}|${time}|${tag}|${favoritesOnly}`}>
             {filteredRecipes.map((recipe, index) => <RecipeCard key={recipe.id} recipe={recipe} enterIndex={index} {...cardProps} />)}
             {!filteredRecipes.length && <div className="empty-state">
               <Search size={30} aria-hidden="true" />

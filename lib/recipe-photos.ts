@@ -173,3 +173,8 @@ const photoIds = new Set<string>([
 export function recipePhoto(id: string | number) {
   return photoIds.has(String(id)) ? `/photos/${id}.jpg` : null;
 }
+
+/** The same photo 480 px wide, for small screens. */
+export function recipePhotoSmall(id: string | number) {
+  return photoIds.has(String(id)) ? `/photos/sm/${id}.jpg` : null;
+}

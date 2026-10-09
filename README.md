@@ -34,9 +34,15 @@ Les favoris sont conservés dans le navigateur du visiteur. Dès qu’une recett
 
 Les ingrédients étant du texte libre, l’addition repose sur leur lecture (`lib/shopping-list.ts`) : une quantité, une unité éventuelle, puis le nom. Les unités d’une même famille sont converties (g et kg, cl et l, cuillères à café et à soupe) ; les autres restent côte à côte (« 250 g + 3 pots de farine »). Les lignes sans quantité (« Sel, poivre ») sont listées à part.
 
+## Sur téléphone
+
+En dessous de 760 px de large, le site change de forme plutôt que de se tasser : navigation dans une barre en bas de l’écran, un carrousel par moment sur l’accueil, résultats en lignes compactes, filtres dans un volet, recette en deux onglets, liste de courses en plein écran. Le bouton « Cuisiner pas à pas » ouvre le mode cuisine (`components/cooking-mode.tsx`) : une étape par écran, les ingrédients de l’étape, un minuteur quand elle demande d’attendre, et l’écran maintenu allumé là où le navigateur le permet.
+
+Le site s’installe sur l’écran d’accueil (`app/manifest.ts`). Le service worker `public/sw.js` garde lisibles sans réseau les pages déjà visitées et les recettes mises en favori ; en ligne, le réseau passe toujours en premier, donc rien d’affiché n’est périmé.
+
 ## Photos des recettes
 
-Chaque recette peut avoir une photo `public/photos/<identifiant>.jpg` (900 × 600, paysage). Une recette sans photo affiche son émoji. Après avoir ajouté ou retiré une photo, lancez `npm run photos` pour mettre à jour la liste `lib/recipe-photos.ts`, puis commitez les deux.
+Chaque recette peut avoir une photo `public/photos/<identifiant>.jpg` (900 × 600, paysage). Une recette sans photo affiche son émoji. Après avoir ajouté, remplacé ou retiré une photo, lancez `npm run photos` : la commande crée la copie allégée servie aux téléphones (`public/photos/sm/`, 480 px) et met à jour la liste `lib/recipe-photos.ts`. Commitez le tout.
 
 ## Base de données
 

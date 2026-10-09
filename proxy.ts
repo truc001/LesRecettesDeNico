@@ -13,6 +13,9 @@ function contentSecurityPolicy(nonce: string) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.google-analytics.com https://*.googletagmanager.com",
     "font-src 'self' data:",
+    // 'strict-dynamic' makes script-src ignore 'self', so the service worker needs its own rule.
+    "worker-src 'self'",
+    "manifest-src 'self'",
     `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://apis.google.com https://firebase.googleapis.com https://firebaseinstallations.googleapis.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com${isDev ? " ws:" : ""}`,
     `frame-src https://${firebaseAuthDomain} https://accounts.google.com`,
     "frame-ancestors 'none'",
@@ -37,7 +40,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [{
-    source: "/((?!api|_next/static|_next/image|photos/|logo.png|icon.png|apple-icon.png|tarte-tatin.jpg|robots.txt|sitemap.xml).*)",
+    source: "/((?!api|_next/static|_next/image|photos/|logo.png|icon.png|icon-192.png|icon-512.png|icon-maskable.png|apple-icon.png|sw.js|manifest.webmanifest|tarte-tatin.jpg|robots.txt|sitemap.xml).*)",
     missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }],
   }],
 };

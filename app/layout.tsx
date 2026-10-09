@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { FirebaseAnalytics } from "@/components/firebase-analytics";
+import { ServiceWorker } from "@/components/service-worker";
 import { sharingImage, siteName, siteUrl } from "@/lib/site";
 import "./globals.css";
 
@@ -22,6 +23,9 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
+// viewport-fit=cover lets the bottom bar reach under the home indicator of recent iPhones.
+export const viewport: Viewport = { themeColor: "#faf9f5", viewportFit: "cover" };
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className="antialiased">{children}<FirebaseAnalytics /></body>
+      <body className="antialiased">{children}<FirebaseAnalytics /><ServiceWorker /></body>
     </html>
   );
 }

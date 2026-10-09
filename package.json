@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/recipe-input.cjs tests/firestore-store.cjs tests/shopping-list.cjs tests/recipe-browse.cjs",
+    "test": "node --test tests/recipe-input.cjs tests/firestore-store.cjs tests/shopping-list.cjs tests/recipe-browse.cjs tests/cooking.cjs",
     "test:emulator": "npx -y firebase-tools@latest emulators:exec --only firestore --project demo-nico-firestore \"node tests/firestore-rules.cjs && node tests/firestore-emulator.cjs\"",
     "photos": "node tools/list-photos.cjs"
   },
