@@ -17,6 +17,10 @@ test('normalizes safe recipe text without interpreting it', () => {
  assert.equal(result.ingredients,'Pommes\nFarine');
 });
 
+test('turns pasted tabs into spaces, which the Firestore rules accept', () => {
+ assert.equal(parseRecipeInput({...valid,ingredients:'Farine\t\t200 g\nSucre\t50 g'},true).ingredients,'Farine 200 g\nSucre 50 g');
+});
+
 test('rejects markup, executable protocols and hidden controls', () => {
  for (const title of ['<script>alert(1)</script>','javascript:alert(1)','Tarte\u202Ecachée','Tarte`code`']) {
   assert.throws(()=>parseRecipeInput({...valid,title},true),/caractères interdits/);

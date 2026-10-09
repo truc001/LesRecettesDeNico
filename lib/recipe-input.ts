@@ -26,7 +26,8 @@ type TextOptions = {
 
 function safeText(value: unknown, options: TextOptions) {
   const source = typeof value === "string" ? value : options.fallback ?? "";
-  const cleaned = source.normalize("NFC").replace(/\r\n?/g, "\n").trim();
+  // Tabs come with text pasted from tables; the Firestore rules refuse them.
+  const cleaned = source.normalize("NFC").replace(/\r\n?/g, "\n").replace(/\t+/g, " ").trim();
   const normalized = cleaned || options.fallback?.normalize("NFC").trim() || "";
   if (!options.multiline && normalized.includes("\n")) throw new RecipeInputError(`${options.label} doit tenir sur une seule ligne.`);
   if (forbiddenCharacters.test(normalized) || executableProtocol.test(normalized)) throw new RecipeInputError(`${options.label} contient des caractères interdits.`);

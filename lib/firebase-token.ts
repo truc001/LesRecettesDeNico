@@ -20,10 +20,3 @@ export async function getFirebaseUser(request: Request): Promise<FirebaseIdentit
     return { email, uid: payload.sub, name: typeof payload.name === "string" ? payload.name.slice(0, 80) : "", provider };
   } catch { return null; }
 }
-
-export async function getFirebaseAdmin(request: Request) {
-  const user = await getFirebaseUser(request);
-  if (!user) return null;
-  const allowedEmails = (process.env.ADMIN_EMAILS ?? "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
-  return allowedEmails.includes(user.email) ? user : null;
-}

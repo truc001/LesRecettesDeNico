@@ -45,47 +45,80 @@ async function check(name, method, path, auth, body, expected) {
  await check('immutable creation timestamp','PATCH','/recipes/valid?updateMask.fieldPaths=createdAt',admin,{fields:{createdAt:{timestampValue:'2020-01-01T00:00:00Z'}}},403);
  await check('immutable source ID','PATCH','/recipes/valid?updateMask.fieldPaths=sourceId',admin,{fields:{sourceId:{stringValue:'hijack'}}},403);
  await check('missing recipe is not recreated','PATCH','/recipes/missing?currentDocument.exists=true',admin,{fields},403);
- await check('deletion denied even to admin','DELETE','/recipes/valid',admin,null,403);
+ await check('admin toggles featured','PATCH','/recipes/valid?updateMask.fieldPaths=featured&currentDocument.exists=true',admin,{fields:{featured:{booleanValue:true}}},200);
+ await check('anonymous deletion denied','DELETE','/recipes/valid',null,null,403);
+ await check('other user deletion denied','DELETE','/recipes/valid',token('other@example.com'),null,403);
  await check('private collection denied','GET','/users',admin,null,403);
  await check('nested collection denied','GET','/recipes/valid/private',admin,null,403);
  await check('invalid document ID denied','POST','/recipes?documentId=bad.id',admin,{fields},403);
  await check('old creation timestamp denied','POST','/recipes?documentId=old',admin,{fields:{...fields,createdAt:{timestampValue:'2020-01-01T00:00:00Z'}}},403);
  await check('oversized creation denied','POST','/recipes?documentId=big',admin,{fields:{...fields,ingredients:{stringValue:'x'.repeat(4001)}}},403);
+ await check('tab character denied','POST','/recipes?documentId=tab',admin,{fields:{...fields,ingredients:{stringValue:'Farine\t200 g'}}},403);
+ await check('admin deletes recipe','DELETE','/recipes/valid?currentDocument.exists=true',admin,null,200);
+ await check('deleted recipe is gone','GET','/recipes/valid',null,null,404);
  const viewer = token('viewer@example.com',true,'google.com','viewer-one');
  const otherViewer = token('other@example.com',true,'google.com','viewer-two');
- await check('anonymous submission denied','POST','/recipeSubmissions?documentId=anonymous',null,{fields:submissionFields},403);
- await check('password account submission denied','POST','/recipeSubmissions?documentId=password-user',token('viewer@example.com',true,'password','viewer-one'),{fields:submissionFields},403);
- await check('unverified account submission denied','POST','/recipeSubmissions?documentId=unverified-user',token('viewer@example.com',false,'google.com','viewer-one'),{fields:submissionFields},403);
- await check('spoofed submitter UID denied','POST','/recipeSubmissions?documentId=spoofed',viewer,{fields:{...submissionFields,submitterUid:{stringValue:'victim'}}},403);
- await check('markup in submission denied','POST','/recipeSubmissions?documentId=markup',viewer,{fields:{...submissionFields,title:{stringValue:'Tarte <script>'}}},403);
- await check('executable protocol in submission denied','POST','/recipeSubmissions?documentId=protocol',viewer,{fields:{...submissionFields,steps:{stringValue:'Préparer\njavascript:alert(1)'}}},403);
- await check('hidden bidi control denied','POST','/recipeSubmissions?documentId=hidden',viewer,{fields:{...submissionFields,title:{stringValue:'Tarte \u202E cachée'}}},403);
- await check('oversized submission denied','POST','/recipeSubmissions?documentId=huge',viewer,{fields:{...submissionFields,steps:{stringValue:'x'.repeat(4001)}}},403);
- await check('Google viewer creates pending submission','POST','/recipeSubmissions?documentId=submission-one',viewer,{fields:submissionFields},200);
- await check('submitter cannot read own submission','GET','/recipeSubmissions/submission-one',viewer,null,403);
- await check('other viewer cannot read submission','GET','/recipeSubmissions/submission-one',otherViewer,null,403);
- await check('admin reads submission','GET','/recipeSubmissions/submission-one',admin,null,200);
- await check('admin lists submissions','GET','/recipeSubmissions?pageSize=100',admin,null,200);
- await check('submitter cannot update submission','PATCH','/recipeSubmissions/submission-one?updateMask.fieldPaths=title',viewer,{fields:{title:{stringValue:'Intrusion'}}},403);
- await check('admin cannot rewrite submitted content','PATCH','/recipeSubmissions/submission-one?updateMask.fieldPaths=title',admin,{fields:{title:{stringValue:'Réécriture'}}},403);
- await check('admin approves pending submission','PATCH','/recipeSubmissions/submission-one?updateMask.fieldPaths=status&updateMask.fieldPaths=reviewedAt&updateMask.fieldPaths=recipeId',admin,{fields:{status:{stringValue:'approved'},reviewedAt:{timestampValue:new Date().toISOString()},recipeId:{stringValue:'community-submission-one'}}},200);
- await check('approved submission cannot be reviewed twice','PATCH','/recipeSubmissions/submission-one?updateMask.fieldPaths=status',admin,{fields:{status:{stringValue:'rejected'}}},403);
- await check('submission deletion denied to admin','DELETE','/recipeSubmissions/submission-one',admin,null,403);
- await check('second Google submission accepted','POST','/recipeSubmissions?documentId=submission-two',viewer,{fields:submissionFields},200);
- await check('admin rejects pending submission','PATCH','/recipeSubmissions/submission-two?updateMask.fieldPaths=status&updateMask.fieldPaths=reviewedAt&updateMask.fieldPaths=recipeId',admin,{fields:{status:{stringValue:'rejected'},reviewedAt:{timestampValue:new Date().toISOString()},recipeId:{stringValue:''}}},200);
- await check('third Google submission accepted','POST','/recipeSubmissions?documentId=submission-three',viewer,{fields:submissionFields},200);
- const reviewedAt = new Date().toISOString();
+ const docs='projects/'+project+'/databases/(default)/documents/';
+ // Same two writes as createFirestoreSubmission in lib/firestore-submissions.ts.
+ const submit=(id,{uid='viewer-one',count=1,windowStart,limitUid=uid,limitId=id,submission={},precondition}={})=>({writes:[
+  {update:{name:docs+'recipeSubmissions/'+id,fields:{...submissionFields,submitterUid:{stringValue:uid},...submission}},currentDocument:{exists:false}},
+  {update:{name:docs+'submissionLimits/'+limitUid,fields:{count:{integerValue:String(count)},lastSubmissionId:{stringValue:limitId},...(windowStart?{windowStart:{timestampValue:windowStart}}:{})}},
+   updateTransforms:[{fieldPath:'lastAt',setToServerValue:'REQUEST_TIME'},...(windowStart?[]:[{fieldPath:'windowStart',setToServerValue:'REQUEST_TIME'}])],
+   ...(precondition?{currentDocument:precondition}:{})}
+ ]});
+ await check('anonymous submission denied','POST',':commit',null,submit('anonymous'),403);
+ await check('password account submission denied','POST',':commit',token('viewer@example.com',true,'password','viewer-one'),submit('password-user'),403);
+ await check('unverified account submission denied','POST',':commit',token('viewer@example.com',false,'google.com','viewer-one'),submit('unverified-user'),403);
+ await check('spoofed submitter UID denied','POST',':commit',viewer,submit('spoofed',{uid:'victim',limitUid:'viewer-one'}),403);
+ await check('markup in submission denied','POST',':commit',viewer,submit('markup',{submission:{title:{stringValue:'Tarte <script>'}}}),403);
+ await check('executable protocol in submission denied','POST',':commit',viewer,submit('protocol',{submission:{steps:{stringValue:'Préparer\njavascript:alert(1)'}}}),403);
+ await check('hidden bidi control denied','POST',':commit',viewer,submit('hidden',{submission:{title:{stringValue:'Tarte ‮ cachée'}}}),403);
+ await check('oversized submission denied','POST',':commit',viewer,submit('huge',{submission:{steps:{stringValue:'x'.repeat(4001)}}}),403);
+ await check('pre-approved submission denied','POST',':commit',viewer,submit('approved',{submission:{status:{stringValue:'approved'}}}),403);
+ await check('submission without its counter denied','POST','/recipeSubmissions?documentId=uncounted',viewer,{fields:submissionFields},403);
+ await check('counter pointing at another submission denied','POST',':commit',viewer,submit('mismatch',{limitId:'elsewhere'}),403);
+ await check('counter of another account denied','POST',':commit',viewer,submit('borrowed',{limitUid:'viewer-two'}),403);
+ await check('counter not starting at one denied','POST',':commit',viewer,submit('skipped',{count:0}),403);
+ await check('Google viewer creates pending submission','POST',':commit',viewer,submit('submission-1'),200);
+ await check('counter without a new submission denied','PATCH','/submissionLimits/viewer-one',viewer,{fields:{count:{integerValue:'1'},lastSubmissionId:{stringValue:'submission-1'},lastAt:{timestampValue:new Date().toISOString()},windowStart:{timestampValue:new Date().toISOString()}}},403);
+ await check('counter deletion denied','DELETE','/submissionLimits/viewer-one',viewer,null,403);
+ await check('other viewer cannot read counter','GET','/submissionLimits/viewer-one',otherViewer,null,403);
+ const limitResponse=await fetch(base+'/submissionLimits/viewer-one',{headers:{Authorization:'Bearer '+viewer}});
+ const limit=await limitResponse.json();
+ assert.equal(limitResponse.status,200,'owner reads own counter: '+JSON.stringify(limit));
+ assert.equal(limit.fields.count.integerValue,'1');
+ const windowStart=limit.fields.windowStart.timestampValue;
+ await check('counter cannot be reset inside the window','POST',':commit',viewer,submit('reset'),403);
+ await check('counter cannot stay still','POST',':commit',viewer,submit('still',{count:1,windowStart}),403);
+ await check('counter cannot move the window','POST',':commit',viewer,submit('moved',{count:2,windowStart:new Date(Date.now()-60000).toISOString()}),403);
+ for (const count of [2,3,4,5]) await check('submission '+count+' of the day accepted','POST',':commit',viewer,submit('submission-'+count,{count,windowStart}),200);
+ await check('sixth submission of the day denied','POST',':commit',viewer,submit('submission-6',{count:6,windowStart}),403);
+ await check('other viewer has an independent counter','POST',':commit',otherViewer,submit('other-1',{uid:'viewer-two'}),200);
+ await check('submitter cannot read own submission','GET','/recipeSubmissions/submission-1',viewer,null,403);
+ await check('other viewer cannot read submission','GET','/recipeSubmissions/submission-1',otherViewer,null,403);
+ await check('admin reads submission','GET','/recipeSubmissions/submission-1',admin,null,200);
+ await check('admin probe lists submissions','GET','/recipeSubmissions?pageSize=1&mask.fieldPaths=status',admin,null,200);
+ await check('admin probe denied to viewer','GET','/recipeSubmissions?pageSize=1&mask.fieldPaths=status',viewer,null,403);
+ const pending={structuredQuery:{from:[{collectionId:'recipeSubmissions'}],where:{fieldFilter:{field:{fieldPath:'status'},op:'EQUAL',value:{stringValue:'pending'}}},limit:100}};
+ await check('admin queries pending submissions','POST',':runQuery',admin,pending,200);
+ await check('viewer cannot query submissions','POST',':runQuery',viewer,pending,403);
+ await check('submitter cannot update submission','PATCH','/recipeSubmissions/submission-1?updateMask.fieldPaths=title',viewer,{fields:{title:{stringValue:'Intrusion'}}},403);
+ await check('admin cannot rewrite submitted content','PATCH','/recipeSubmissions/submission-1?updateMask.fieldPaths=title',admin,{fields:{title:{stringValue:'Réécriture'}}},403);
+ await check('submitter cannot delete submission','DELETE','/recipeSubmissions/submission-1',viewer,null,403);
+ await check('admin rejects submission by deleting it','POST',':commit',admin,{writes:[{delete:docs+'recipeSubmissions/submission-1'}]},200);
+ await check('rejected submission is gone','GET','/recipeSubmissions/submission-1',admin,null,404);
+ await check('rejected submission cannot be replayed','POST','/recipeSubmissions?documentId=submission-1',viewer,{fields:submissionFields},403);
  await check('approval atomically publishes recipe','POST',':commit',admin,{writes:[
-  {update:{name:'projects/'+project+'/databases/(default)/documents/recipes/community-submission-three',fields:{
+  {update:{name:docs+'recipes/community-submission-2',fields:{
    title:submissionFields.title,category:submissionFields.category,description:submissionFields.description,
    duration:submissionFields.duration,servings:submissionFields.servings,emoji:submissionFields.emoji,
    ingredients:submissionFields.ingredients,steps:submissionFields.steps,contributor:{stringValue:''},
-   featured:{booleanValue:false},createdAt:{timestampValue:reviewedAt}
+   featured:{booleanValue:false},createdAt:{timestampValue:new Date().toISOString()}
   }},currentDocument:{exists:false}},
-  {update:{name:'projects/'+project+'/databases/(default)/documents/recipeSubmissions/submission-three',fields:{
-   ...submissionFields,status:{stringValue:'approved'},reviewedAt:{timestampValue:reviewedAt},recipeId:{stringValue:'community-submission-three'}
-  }}}
+  {delete:docs+'recipeSubmissions/submission-2'}
  ]},200);
- await check('approved recipe is publicly readable','GET','/recipes/community-submission-three',null,null,200);
- console.log(JSON.stringify(results,null,2));
+ await check('approved recipe is publicly readable','GET','/recipes/community-submission-2',null,null,200);
+ await check('approved submission is gone','GET','/recipeSubmissions/submission-2',admin,null,404);
+ await check('viewer cannot publish a recipe','POST',':commit',viewer,{writes:[{update:{name:docs+'recipes/community-intrusion',fields}}]},403);
+ console.log(results.length+' vérifications des règles réussies.');
 })().catch(e=>{console.error(e);process.exit(1)});
