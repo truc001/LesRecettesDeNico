@@ -30,7 +30,9 @@ Pour faire tourner le site contre l’émulateur, définissez `FIRESTORE_EMULATO
 
 ## Favoris et liste de courses
 
-Les favoris sont conservés dans le navigateur du visiteur. Dès qu’une recette est en favori, le bouton « Liste de courses » réunit les ingrédients des recettes favorites, regroupés par recette : on coche ce qu’on a déjà, et « Copier la liste » copie ce qui reste à acheter.
+Les favoris sont conservés dans le navigateur du visiteur. Dès qu’une recette est en favori, le bouton « Liste de courses » réunit les ingrédients des recettes favorites en additionnant les quantités d’un même ingrédient (100 g + 150 g + 50 g de farine deviennent 300 g de farine). On coche ce qu’on a déjà, et « Copier la liste » copie ce qui reste à acheter.
+
+Les ingrédients étant du texte libre, l’addition repose sur leur lecture (`lib/shopping-list.ts`) : une quantité, une unité éventuelle, puis le nom. Les unités d’une même famille sont converties (g et kg, cl et l, cuillères à café et à soupe) ; les autres restent côte à côte (« 250 g + 3 pots de farine »). Les lignes sans quantité (« Sel, poivre ») sont listées à part.
 
 ## Photos des recettes
 

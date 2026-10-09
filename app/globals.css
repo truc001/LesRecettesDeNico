@@ -112,6 +112,7 @@ button svg { pointer-events: none; }
 .shopping-dialog { width: min(720px, calc(100% - 32px)); max-width: 720px; }
 .shopping-count { margin: 0; color: var(--muted); font-size: 13px; }
 .shopping-list { display: grid; gap: 14px; }
+.shopping-list label small { display: block; color: var(--muted); font-size: 12px; line-height: 1.4; text-decoration: none; }
 .shopping-list h3 { margin: 0 0 12px; font-family: Georgia, serif; font-size: 21px; font-weight: 400; line-height: 1.25; }
 .results-count { margin: 20px 0; color: var(--muted); font-size: 12px; }
 .notice { padding: 14px 18px; border: 1px solid #d9c49c; background: #fff3db; color: #674617; border-radius: 10px; font-size: 14px; }
