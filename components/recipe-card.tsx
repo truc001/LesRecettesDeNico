@@ -1,11 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock3, Heart, Pencil, Sparkles, UsersRound } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { RecipeReading } from "@/components/recipe-reading";
 import { trackRecipeView } from "@/lib/firebase-analytics";
 import type { Recipe } from "@/lib/notion-recipes";
+import { recipePhoto } from "@/lib/recipe-photos";
 import { recipePath } from "@/lib/site";
 
 function cardTone(recipe: Recipe) {
@@ -15,8 +17,11 @@ function cardTone(recipe: Recipe) {
 }
 
 export function RecipeCard({ recipe, liked, onLike, isAdmin, onEdit }: { recipe: Recipe; liked: boolean; onLike: () => void; isAdmin: boolean; onEdit: (recipe: Recipe) => void }) {
+  const photo = recipePhoto(recipe.id);
   return <article className={`recipe-card tone-${cardTone(recipe)}`}>
-    <div className="recipe-art" aria-hidden="true"><span className="recipe-plate">{recipe.emoji}</span><span className="art-caption">Fait maison, avec plaisir</span></div>
+    {/* Photos are already sized for the cards (900 px wide), so they are served as they are. */}
+    {photo ? <div className="recipe-art recipe-photo"><Image src={photo} alt="" fill unoptimized sizes="(max-width: 480px) 100vw, (max-width: 1080px) 50vw, 400px" /></div>
+      : <div className="recipe-art" aria-hidden="true"><span className="recipe-plate">{recipe.emoji}</span><span className="art-caption">Fait maison, avec plaisir</span></div>}
     <button aria-label={`${liked ? "Retirer des favoris" : "Ajouter aux favoris"} : ${recipe.title}`} aria-pressed={liked} className={`favorite ${liked ? "favorite-active" : ""}`} onClick={onLike}><Heart size={20} fill={liked ? "currentColor" : "none"} /></button>
     <div className="recipe-content">
       <div className="recipe-topline"><span>{recipe.category}</span>{recipe.featured && <span className="recipe-pick"><Sparkles size={12} aria-hidden="true" /> Le choix de Nico</span>}</div>

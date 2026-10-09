@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -6,8 +7,9 @@ import { ArrowLeft } from "lucide-react";
 import { RecipeReading } from "@/components/recipe-reading";
 import { SiteBrand } from "@/components/site-brand";
 import { SiteFooter } from "@/components/site-footer";
+import { recipePhoto } from "@/lib/recipe-photos";
 import { getRecipes } from "@/lib/recipes-cache";
-import { recipePath, sharingImage, siteName } from "@/lib/site";
+import { recipePath, sharingImage, siteName, siteUrl } from "@/lib/site";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -20,18 +22,20 @@ async function findRecipe({ params }: Props) {
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const recipe = await findRecipe(props).catch(() => undefined);
   if (!recipe) return { title: "Recette introuvable" };
+  const photo = recipePhoto(recipe.id);
   return {
     title: recipe.title,
     description: recipe.description,
     alternates: { canonical: recipePath(recipe.id) },
     // Next.js replaces the layout's openGraph as a whole, so the image is repeated here.
-    openGraph: { type: "article", locale: "fr_FR", siteName, title: recipe.title, description: recipe.description, url: recipePath(recipe.id), images: [sharingImage] },
+    openGraph: { type: "article", locale: "fr_FR", siteName, title: recipe.title, description: recipe.description, url: recipePath(recipe.id), images: [photo ? { url: photo, width: 900, height: 600, alt: recipe.title } : sharingImage] },
   };
 }
 
 export default async function RecipePage(props: Props) {
   const recipe = await findRecipe(props);
   if (!recipe) notFound();
+  const photo = recipePhoto(recipe.id);
   const lines = (text: string) => text.split("\n").filter(Boolean);
   const structuredData = {
     "@context": "https://schema.org",
@@ -39,6 +43,7 @@ export default async function RecipePage(props: Props) {
     name: recipe.title,
     description: recipe.description,
     recipeCategory: recipe.category,
+    ...(photo ? { image: `${siteUrl}${photo}` } : {}),
     author: { "@type": "Person", name: recipe.contributor || "Nico" },
     ...(recipe.servings !== "À préciser" ? { recipeYield: recipe.servings } : {}),
     recipeIngredient: lines(recipe.ingredients),
@@ -54,6 +59,7 @@ export default async function RecipePage(props: Props) {
         <p className="recipe-page-description">{recipe.description}</p>
         {recipe.contributor && <p className="recipe-contributor">Proposée par {recipe.contributor}</p>}
         {recipe.tag && <p className="recipe-tag">#{recipe.tag}</p>}
+        {photo && <div className="recipe-page-photo"><Image src={photo} alt={recipe.title} fill priority unoptimized sizes="(max-width: 900px) 100vw, 850px" /></div>}
         <RecipeReading recipe={recipe} />
       </article>
       {/* Recipe text never contains "<" (see lib/recipe-input.ts); escaped anyway. */}
