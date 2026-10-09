@@ -66,8 +66,14 @@ function cleanName(name: string) {
 }
 
 /** Same ingredient whatever the accents and the number: "Œufs" and "œuf" share a key. */
-function nameKey(name: string) {
+export function nameKey(name: string) {
   return plain(name).split(" ").map((word) => word.length > 3 ? word.replace(/[sx]$/, "") : word).join(" ");
+}
+
+/** Name of the ingredient on a line, without its quantity: "120 g de chocolat noir" → "chocolat noir". */
+export function ingredientName(line: string) {
+  const text = line.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  return cleanName(WITH_UNIT.exec(text)?.[3] ?? WITHOUT_UNIT.exec(text)?.[2] ?? text);
 }
 
 function formatNumber(value: number) {

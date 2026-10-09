@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ArrowRight, Clock3, RotateCcw, UsersRound } from "lucide-react";
+import { ArrowRight, Clock3, Play, RotateCcw, UsersRound } from "lucide-react";
+import { CookingMode } from "@/components/cooking-mode";
 import type { Recipe } from "@/lib/notion-recipes";
 
 const lines = (text: string) => text.split("\n").filter(Boolean);
@@ -14,6 +15,9 @@ export function RecipeReading({ recipe }: { recipe: Recipe }) {
   // -1 until the cook starts following the steps.
   const [current, setCurrent] = useState(-1);
   const stepList = useRef<HTMLOListElement>(null);
+  // On a phone the two lists are tabs, and the steps can be followed full screen.
+  const [tab, setTab] = useState<"ingredients" | "steps">("ingredients");
+  const [cooking, setCooking] = useState(false);
 
   function toggle(index: number) { setChecked(checked.includes(index) ? checked.filter((item) => item !== index) : [...checked, index]); }
   function goTo(index: number) {
@@ -27,7 +31,11 @@ export function RecipeReading({ recipe }: { recipe: Recipe }) {
       <span><Clock3 size={18} aria-hidden="true" /> {recipe.duration === "À préciser" ? "Temps à préciser" : recipe.duration}</span>
       <span><UsersRound size={18} aria-hidden="true" /> {recipe.servings === "À préciser" ? "Portions à préciser" : recipe.servings}</span>
     </div>
-    <div className="reading-columns">
+    <div className={`reading-tabs reading-tabs-${tab}`} role="group" aria-label="Partie de la recette">
+      <button type="button" aria-pressed={tab === "ingredients"} onClick={() => setTab("ingredients")}>Ingrédients{checked.length > 0 && ` · ${checked.length}/${ingredients.length}`}</button>
+      <button type="button" aria-pressed={tab === "steps"} onClick={() => setTab("steps")}>Préparation</button>
+    </div>
+    <div className="reading-columns" data-tab={tab}>
       <section className="ingredients">
         <h3>Ingrédients</h3>
         {ingredients.length > 0 && <div className="ingredients-progress">
@@ -46,5 +54,9 @@ export function RecipeReading({ recipe }: { recipe: Recipe }) {
         </button>}
       </section>
     </div>
+    {steps.length > 0 && <>
+      <button type="button" className="cooking-start" onClick={() => setCooking(true)}><Play size={18} fill="currentColor" aria-hidden="true" /> Cuisiner pas à pas</button>
+      <CookingMode title={recipe.title} ingredients={ingredients} steps={steps} open={cooking} onOpenChange={setCooking} />
+    </>}
   </>;
 }
