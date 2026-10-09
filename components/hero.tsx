@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, Shuffle } from "lucide-react";
 import type { Recipe } from "@/lib/notion-recipes";
@@ -15,17 +16,22 @@ type Props = {
   highlights: Recipe[];
 };
 
+// The entrance plays once per page load: coming back to the home page shows it at rest.
+let entrancePlayed = false;
+
 export function Hero({ recipes, highlights }: Props) {
   const router = useRouter();
+  const [entering] = useState(() => !entrancePlayed);
+  useEffect(() => { entrancePlayed = true; }, []);
   const pictured = highlights.flatMap((recipe) => { const photo = recipePhoto(recipe.id); return photo ? [{ recipe, photo }] : []; }).slice(0, 3);
   function surprise() {
     const recipe = recipes[Math.floor(Math.random() * recipes.length)];
     if (recipe) router.push(recipePath(recipe.id));
   }
-  return <section className="hero" aria-labelledby="hero-title">
+  return <section className={`hero ${entering ? "hero-entering" : ""}`} aria-labelledby="hero-title">
     <div className="hero-text">
       <p className="eyebrow"><span /> Le bonheur est fait maison</p>
-      <h1 id="hero-title">Un peu de vous.<br />Beaucoup de <em>gourmandise.</em></h1>
+      <h1 id="hero-title"><span>Un peu de vous.</span> <span>Beaucoup de <em>gourmandise.</em></span></h1>
       <p className="hero-copy">Les recettes qu’on aime faire, refaire et partager. Bienvenue dans mon carnet de cuisine.</p>
       {recipes.length > 0 && <div className="hero-actions">
         <button type="button" className="primary-link" onClick={surprise}><Shuffle size={18} aria-hidden="true" /> Une idée au hasard</button>
