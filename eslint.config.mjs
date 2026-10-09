@@ -24,8 +24,8 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // Tests are CommonJS scripts run directly by Node.
-    files: ["tests/**/*.cjs"],
+    // Tests and tools are CommonJS scripts run directly by Node.
+    files: ["tests/**/*.cjs", "tools/**/*.cjs"],
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
 ]);
