@@ -2,7 +2,7 @@ import type { Recipe } from "./notion-recipes";
 
 type Value = { stringValue?: string; booleanValue?: boolean; timestampValue?: string };
 type Document = { name: string; fields: Record<string, Value> };
-export type RecipeValues = Pick<Recipe, "title" | "category" | "description" | "duration" | "servings" | "emoji" | "ingredients" | "steps" | "contributor">;
+export type RecipeValues = Pick<Recipe, "title" | "category" | "description" | "duration" | "servings" | "emoji" | "ingredients" | "steps" | "contributor" | "tag">;
 
 export class FirestoreError extends Error {
   constructor(public status: number) { super("Firestore request failed"); }
@@ -30,6 +30,7 @@ function fromDocument(document: Document): Recipe & { createdAt?: string } {
     ingredients: f.ingredients?.stringValue ?? "",
     steps: f.steps?.stringValue ?? "",
     ...(f.contributor?.stringValue ? { contributor: f.contributor.stringValue } : {}),
+    ...(f.tag?.stringValue ? { tag: f.tag.stringValue } : {}),
     featured: f.featured?.booleanValue ?? false,
     createdAt: f.createdAt?.timestampValue,
     ...(f.sourceId?.stringValue ? { sourceId: f.sourceId.stringValue } : {}),

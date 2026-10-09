@@ -2,7 +2,7 @@ import { revalidateTag } from "next/cache";
 import { readJsonBody, signInRequired } from "@/lib/api-request";
 import { getFirebaseUser } from "@/lib/firebase-token";
 import { createFirestoreRecipe, deleteFirestoreRecipe, FirestoreError, updateFirestoreRecipe } from "@/lib/firestore-recipes";
-import { assertAllowedKeys, parseRecipeInput, RecipeInputError } from "@/lib/recipe-input";
+import { assertAllowedKeys, parseRecipeInput, parseRecipeTag, RecipeInputError } from "@/lib/recipe-input";
 import { getRecipes, RECIPES_TAG } from "@/lib/recipes-cache";
 
 const maxBodyBytes = 64 * 1024;
@@ -20,10 +20,10 @@ export async function GET() {
   try { return Response.json({ recipes: await getRecipes() }); }
   catch (error) { return errorResponse(error); }
 }
-const editableKeys = ["title", "category", "description", "duration", "servings", "emoji", "ingredients", "steps", "contributor", "featured"];
+const editableKeys = ["title", "category", "description", "duration", "servings", "emoji", "ingredients", "steps", "contributor", "tag", "featured"];
 function parseRecipe(body: Record<string, unknown>) {
   if ("featured" in body && typeof body.featured !== "boolean") throw new RecipeInputError("Le choix de Nico doit être coché ou décoché.");
-  return { ...parseRecipeInput(body), ...(typeof body.featured === "boolean" ? { featured: body.featured } : {}) };
+  return { ...parseRecipeInput(body), ...("tag" in body ? { tag: parseRecipeTag(body.tag) } : {}), ...(typeof body.featured === "boolean" ? { featured: body.featured } : {}) };
 }
 export async function POST(request: Request) {
   if (!await getFirebaseUser(request)) return signInRequired();

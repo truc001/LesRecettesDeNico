@@ -45,6 +45,10 @@ async function check(name, method, path, auth, body, expected) {
  await check('immutable creation timestamp','PATCH','/recipes/valid?updateMask.fieldPaths=createdAt',admin,{fields:{createdAt:{timestampValue:'2020-01-01T00:00:00Z'}}},403);
  await check('immutable source ID','PATCH','/recipes/valid?updateMask.fieldPaths=sourceId',admin,{fields:{sourceId:{stringValue:'hijack'}}},403);
  await check('missing recipe is not recreated','PATCH','/recipes/missing?currentDocument.exists=true',admin,{fields},403);
+ await check('admin tags recipe','PATCH','/recipes/valid?updateMask.fieldPaths=tag&currentDocument.exists=true',admin,{fields:{tag:{stringValue:'deNico'}}},200);
+ await check('oversized tag denied','PATCH','/recipes/valid?updateMask.fieldPaths=tag',admin,{fields:{tag:{stringValue:'x'.repeat(41)}}},403);
+ await check('markup in tag denied','PATCH','/recipes/valid?updateMask.fieldPaths=tag',admin,{fields:{tag:{stringValue:'<b>'}}},403);
+ await check('submission cannot carry a tag','POST',':commit',token('viewer@example.com',true,'google.com','viewer-zero'),{writes:[{update:{name:'projects/'+project+'/databases/(default)/documents/recipeSubmissions/tagged',fields:{...submissionFields,submitterUid:{stringValue:'viewer-zero'},tag:{stringValue:'deNico'}}}},{update:{name:'projects/'+project+'/databases/(default)/documents/submissionLimits/viewer-zero',fields:{count:{integerValue:'1'},lastSubmissionId:{stringValue:'tagged'}}},updateTransforms:[{fieldPath:'lastAt',setToServerValue:'REQUEST_TIME'},{fieldPath:'windowStart',setToServerValue:'REQUEST_TIME'}]}]},403);
  await check('admin toggles featured','PATCH','/recipes/valid?updateMask.fieldPaths=featured&currentDocument.exists=true',admin,{fields:{featured:{booleanValue:true}}},200);
  await check('anonymous deletion denied','DELETE','/recipes/valid',null,null,403);
  await check('other user deletion denied','DELETE','/recipes/valid',token('other@example.com'),null,403);

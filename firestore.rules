@@ -8,6 +8,7 @@ service cloud.firestore {
     //   title, category, description, duration, servings, emoji,
     //   ingredients, steps: bounded safe strings
     //   contributor: optional bounded safe string
+    //   tag: optional bounded safe string (free label, e.g. "deNico")
     //   featured: bool; createdAt: immutable timestamp
     //   sourceId: optional immutable string
     // Public read; administrator-only create/update/delete.
@@ -70,8 +71,9 @@ service cloud.firestore {
 
     function isValidRecipe(data) {
       return data.keys().hasAll(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'featured', 'createdAt'])
-        && data.keys().hasOnly(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'contributor', 'featured', 'createdAt', 'sourceId'])
+        && data.keys().hasOnly(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'contributor', 'tag', 'featured', 'createdAt', 'sourceId'])
         && hasValidRecipeText(data)
+        && (!('tag' in data) || validSafeText(data.tag, 0, 40))
         && data.featured is bool
         && data.createdAt is timestamp
         && (!('sourceId' in data) || validSafeText(data.sourceId, 1, 128));

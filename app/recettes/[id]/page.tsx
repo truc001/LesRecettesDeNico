@@ -53,6 +53,7 @@ export default async function RecipePage(props: Props) {
         <h1>{recipe.title}</h1>
         <p className="recipe-page-description">{recipe.description}</p>
         {recipe.contributor && <p className="recipe-contributor">Proposée par {recipe.contributor}</p>}
+        {recipe.tag && <p className="recipe-tag">#{recipe.tag}</p>}
         <RecipeReading recipe={recipe} />
       </article>
       {/* Recipe text never contains "<" (see lib/recipe-input.ts); escaped anyway. */}

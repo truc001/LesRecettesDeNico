@@ -37,6 +37,11 @@ function safeText(value: unknown, options: TextOptions) {
   return normalized;
 }
 
+/** Optional label of a recipe; an empty string removes it. */
+export function parseRecipeTag(value: unknown) {
+  return safeText(value, { label: "L’étiquette", max: 40 });
+}
+
 export function assertAllowedKeys(body: Record<string, unknown>, allowed: string[]) {
   const allowedKeys = new Set(allowed);
   if (Object.keys(body).some((key) => !allowedKeys.has(key))) throw new RecipeInputError("La proposition contient des champs non autorisés.");

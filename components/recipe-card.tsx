@@ -23,6 +23,7 @@ export function RecipeCard({ recipe, liked, onLike, isAdmin, onEdit }: { recipe:
       <h3><Link href={recipePath(recipe.id)}>{recipe.title}</Link></h3>
       <p className="recipe-description">{recipe.description}</p>
       {recipe.contributor && <p className="recipe-contributor">Proposée par {recipe.contributor}</p>}
+      {recipe.tag && <p className="recipe-tag">#{recipe.tag}</p>}
       <div className="recipe-meta">
         <span><Clock3 size={16} aria-hidden="true" /> {recipe.duration === "À préciser" ? "Temps à préciser" : recipe.duration}</span>
         {recipe.servings !== "À préciser" && <span><UsersRound size={16} aria-hidden="true" /> {recipe.servings}</span>}

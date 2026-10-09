@@ -14,11 +14,12 @@ type Props = {
   /** The recipe being edited, or null to add a new one. */
   recipe: Recipe | null;
   categories: string[];
+  tags: string[];
   onSaved: (recipe: Recipe, created: boolean) => void;
   onDeleted: (recipe: Recipe) => void;
 };
 
-export function RecipeEditorDialog({ open, onOpenChange, recipe, categories, onSaved, onDeleted }: Props) {
+export function RecipeEditorDialog({ open, onOpenChange, recipe, categories, tags, onSaved, onDeleted }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -34,7 +35,7 @@ export function RecipeEditorDialog({ open, onOpenChange, recipe, categories, onS
     const text = (field: string) => String(form.get(field) ?? "");
     if (!text("title").trim()) return;
     setBusy(true); setError("");
-    const payload = { title: text("title"), category: text("category"), description: text("description"), duration: text("duration"), servings: text("servings"), ingredients: text("ingredients"), steps: text("steps"), contributor: text("contributor"), emoji: recipe?.emoji ?? "🍽️", featured: form.get("featured") === "on" };
+    const payload = { title: text("title"), category: text("category"), description: text("description"), duration: text("duration"), servings: text("servings"), ingredients: text("ingredients"), steps: text("steps"), contributor: text("contributor"), tag: text("tag"), emoji: recipe?.emoji ?? "🍽️", featured: form.get("featured") === "on" };
     try {
       const response = await fetch("/api/recipes", { method: recipe ? "PATCH" : "POST", headers: { "Content-Type": "application/json", ...await authHeaders() }, body: JSON.stringify({ ...payload, ...(recipe ? { id: recipe.id } : {}) }) });
       const data = await response.json() as { recipe?: Recipe; error?: string };
@@ -81,7 +82,10 @@ export function RecipeEditorDialog({ open, onOpenChange, recipe, categories, onS
               <label>Portions<Input name="servings" defaultValue={recipe?.servings === "À préciser" ? "" : recipe?.servings} placeholder="Ex. 4 personnes" /></label>
             </div>
             <label>Petit résumé<Input name="description" defaultValue={recipe?.description === "Une recette à essayer." ? "" : recipe?.description} placeholder="Ce qui la rend spéciale" /></label>
-            <label>Signature<Input name="contributor" maxLength={60} defaultValue={recipe?.contributor} placeholder="Ex. Nicolas" /></label>
+            <div className="form-grid">
+              <label>Signature<Input name="contributor" maxLength={60} defaultValue={recipe?.contributor} placeholder="Ex. Nicolas" /></label>
+              <label>Étiquette<Input name="tag" maxLength={40} defaultValue={recipe?.tag} placeholder="Ex. deNico" list="recipe-tags" autoComplete="off" /><datalist id="recipe-tags">{tags.map((tag) => <option key={tag} value={tag} />)}</datalist></label>
+            </div>
             <label className="featured-field"><input type="checkbox" name="featured" defaultChecked={Boolean(recipe?.featured)} /><span>Le choix de Nico <small>mise en avant en tête du carnet</small></span></label>
           </div>
         </details>
