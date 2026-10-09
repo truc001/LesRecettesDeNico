@@ -33,6 +33,7 @@ test('writes use the caller token and update only editable fields', async t => {
  await store.createFirestoreRecipe(values,'Bearer firebase-user-token');
  await store.updateFirestoreRecipe('notion-super-cookies',values,'Bearer firebase-user-token');
  assert.equal(calls[0].options.headers.Authorization,'Bearer firebase-user-token');
+ assert.match(new URL(calls[0].url).searchParams.get('documentId'),/^[a-zA-Z0-9_-]{1,128}$/);
  assert.equal(JSON.parse(calls[0].options.body).fields.featured.booleanValue,false);
  const url = new URL(calls[1].url);
  assert.equal(url.searchParams.get('currentDocument.exists'),'true');

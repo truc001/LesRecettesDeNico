@@ -1,25 +1,7 @@
 import type { NextConfig } from "next";
 
-const firebaseAuthDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "lesrecettesdenico-51466.firebaseapp.com";
-const isDev = process.env.NODE_ENV !== "production";
-
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://apis.google.com https://www.googletagmanager.com`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://lh3.googleusercontent.com https://www.google-analytics.com https://www.googletagmanager.com",
-  "font-src 'self' data:",
-  `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://apis.google.com https://firebase.googleapis.com https://www.google-analytics.com https://region1.google-analytics.com${isDev ? " ws:" : ""}`,
-  `frame-src https://${firebaseAuthDomain} https://accounts.google.com`,
-  "frame-ancestors 'none'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  ...(isDev ? [] : ["upgrade-insecure-requests"]),
-].join("; ");
-
+// The Content-Security-Policy of pages carries a per-request nonce: see proxy.ts.
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -35,7 +17,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
-      { source: "/api/:path*", headers: [{ key: "Cache-Control", value: "no-store" }] },
+      { source: "/api/:path*", headers: [
+        { key: "Cache-Control", value: "no-store" },
+        { key: "Content-Security-Policy", value: "default-src 'none'; frame-ancestors 'none'" },
+      ] },
     ];
   },
 };

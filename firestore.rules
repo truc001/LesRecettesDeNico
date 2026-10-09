@@ -10,15 +10,21 @@ service cloud.firestore {
     //   contributor: optional bounded safe string
     //   featured: bool; createdAt: immutable timestamp
     //   sourceId: optional immutable string
-    // Public read; administrator-only create/update; no delete.
+    // Public read; administrator-only create/update/delete.
     //
     // recipeSubmissions/{submissionId}
     //   same recipe strings plus contributor
     //   submitterUid: immutable Firebase UID
-    //   status: pending | approved | rejected
-    //   createdAt: immutable timestamp
-    //   reviewedAt and recipeId: added only by the administrator
-    // Google user create; administrator-only read/moderation; no delete.
+    //   status: pending; createdAt: immutable timestamp
+    // Google user create, only together with a submissionLimits write;
+    // administrator-only read and delete (moderation removes the proposal).
+    //
+    // submissionLimits/{uid}
+    //   windowStart: timestamp opening the current 24 h window
+    //   count: submissions made in that window (1 to 5)
+    //   lastAt: request time of the latest submission
+    //   lastSubmissionId: ID of the submission created by the same write
+    // Owner get/create/update, only together with a new submission.
     // ===============================================================
 
     function isAuthenticated() {
@@ -86,14 +92,36 @@ service cloud.firestore {
 
     function isValidSubmission(data) {
       return data.keys().hasAll(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'contributor', 'submitterUid', 'status', 'createdAt'])
-        && data.keys().hasOnly(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'contributor', 'submitterUid', 'status', 'createdAt', 'reviewedAt', 'recipeId'])
+        && data.keys().hasOnly(['title', 'category', 'description', 'duration', 'servings', 'emoji', 'ingredients', 'steps', 'contributor', 'submitterUid', 'status', 'createdAt'])
         && hasValidSubmissionText(data)
         && data.createdAt is timestamp
-        && (
-          (data.status == 'pending' && !('reviewedAt' in data) && !('recipeId' in data))
-          || (data.status == 'approved' && data.reviewedAt is timestamp && validSafeText(data.recipeId, 1, 128) && data.recipeId.matches('^community-[a-zA-Z0-9_-]{1,100}$'))
-          || (data.status == 'rejected' && data.reviewedAt is timestamp && data.recipeId == '')
-        );
+        && data.status == 'pending';
+    }
+
+    function submissionLimit(uid) {
+      return /databases/$(database)/documents/submissionLimits/$(uid);
+    }
+
+    function submission(submissionId) {
+      return /databases/$(database)/documents/recipeSubmissions/$(submissionId);
+    }
+
+    // lastAt can only equal request.time through a server timestamp, which
+    // proves that the limit was written by this very request.
+    function isValidSubmissionLimit(data) {
+      return data.keys().hasAll(['windowStart', 'count', 'lastAt', 'lastSubmissionId'])
+        && data.keys().hasOnly(['windowStart', 'count', 'lastAt', 'lastSubmissionId'])
+        && data.windowStart is timestamp
+        && data.count is int
+        && data.lastAt == request.time
+        && data.lastSubmissionId is string
+        && data.lastSubmissionId.matches('^[a-zA-Z0-9_-]{1,128}$')
+        && !exists(submission(data.lastSubmissionId))
+        && existsAfter(submission(data.lastSubmissionId));
+    }
+
+    function opensSubmissionWindow(data) {
+      return data.windowStart == request.time && data.count == 1;
     }
 
     match /recipes/{recipeId} {
@@ -105,23 +133,38 @@ service cloud.firestore {
       allow update: if isAdmin()
         && isValidRecipe(request.resource.data)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt', 'sourceId']);
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     match /recipeSubmissions/{submissionId} {
       allow create: if isGoogleUser()
         && isValidSubmission(request.resource.data)
-        && request.resource.data.status == 'pending'
         && request.resource.data.submitterUid == request.auth.uid
         && submissionId.matches('^[a-zA-Z0-9_-]{1,128}$')
-        && isRecent(request.resource.data.createdAt);
+        && isRecent(request.resource.data.createdAt)
+        && getAfter(submissionLimit(request.auth.uid)).data.lastAt == request.time
+        && getAfter(submissionLimit(request.auth.uid)).data.lastSubmissionId == submissionId;
       allow read: if isAdmin();
-      allow update: if isAdmin()
-        && resource.data.status == 'pending'
-        && request.resource.data.status in ['approved', 'rejected']
-        && isValidSubmission(request.resource.data)
-        && isRecent(request.resource.data.reviewedAt)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedAt', 'recipeId']);
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /submissionLimits/{uid} {
+      allow get: if isGoogleUser() && request.auth.uid == uid;
+      allow create: if isGoogleUser()
+        && request.auth.uid == uid
+        && isValidSubmissionLimit(request.resource.data)
+        && opensSubmissionWindow(request.resource.data);
+      allow update: if isGoogleUser()
+        && request.auth.uid == uid
+        && isValidSubmissionLimit(request.resource.data)
+        && (
+          (resource.data.windowStart <= request.time - duration.value(24, 'h') && opensSubmissionWindow(request.resource.data))
+          || (resource.data.windowStart > request.time - duration.value(24, 'h')
+            && request.resource.data.windowStart == resource.data.windowStart
+            && request.resource.data.count == resource.data.count + 1
+            && request.resource.data.count <= 5)
+        );
       allow delete: if false;
     }
 

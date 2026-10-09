@@ -1,18 +1,19 @@
 import type { Recipe } from "@/lib/notion-recipes";
 import type { RecipeInput } from "@/lib/recipe-input";
-import { FirestoreError } from "@/lib/firestore-recipes";
+import { documentsUrl, FirestoreError } from "@/lib/firestore-recipes";
 
-type Value = { stringValue?: string; booleanValue?: boolean; timestampValue?: string };
+type Value = { stringValue?: string; booleanValue?: boolean; timestampValue?: string; integerValue?: string };
 type Document = { name: string; fields: Record<string, Value>; updateTime?: string };
 
 export type RecipeSubmission = RecipeInput & {
   id: string;
-  status: "pending" | "approved" | "rejected";
   submitterUid: string;
   createdAt: string;
-  reviewedAt?: string;
-  recipeId?: string;
 };
+
+// Mirrored by the submissionLimits rules in firestore.rules.
+const MAX_SUBMISSIONS_PER_WINDOW = 5;
+const SUBMISSION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function projectId() {
   const project = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
@@ -20,8 +21,8 @@ function projectId() {
   return project;
 }
 
-function collectionUrl() {
-  return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId())}/databases/(default)/documents/recipeSubmissions`;
+function documentsPath() {
+  return `projects/${projectId()}/databases/(default)/documents`;
 }
 
 function fieldsFrom(values: Record<string, string>): Record<string, Value> {
@@ -41,11 +42,8 @@ function fromDocument(document: Document): RecipeSubmission {
     ingredients: f.ingredients?.stringValue ?? "",
     steps: f.steps?.stringValue ?? "",
     contributor: f.contributor?.stringValue ?? "",
-    status: (f.status?.stringValue as RecipeSubmission["status"]) ?? "pending",
     submitterUid: f.submitterUid?.stringValue ?? "",
     createdAt: f.createdAt?.timestampValue ?? "",
-    ...(f.reviewedAt?.timestampValue ? { reviewedAt: f.reviewedAt.timestampValue } : {}),
-    ...(f.recipeId?.stringValue ? { recipeId: f.recipeId.stringValue } : {}),
   };
 }
 
@@ -60,62 +58,80 @@ async function firestoreFetch(url: string, init: RequestInit, authorization: str
   return response;
 }
 
+function commit(writes: unknown[], authorization: string) {
+  return firestoreFetch(`${documentsUrl()}:commit`, { method: "POST", body: JSON.stringify({ writes }) }, authorization);
+}
+
+/** True when the Firestore rules treat this token as the administrator's. */
+export async function isFirestoreAdmin(authorization: string) {
+  try {
+    await firestoreFetch(`${documentsUrl()}/recipeSubmissions?pageSize=1&mask.fieldPaths=status`, { method: "GET" }, authorization);
+    return true;
+  } catch (error) {
+    if (error instanceof FirestoreError && [401, 403].includes(error.status)) return false;
+    throw error;
+  }
+}
+
 export async function createFirestoreSubmission(values: RecipeInput, submitterUid: string, authorization: string) {
-  const now = new Date().toISOString();
-  const fields: Record<string, Value> = {
-    ...fieldsFrom({ ...values, contributor: values.contributor, status: "pending", submitterUid }),
-    createdAt: { timestampValue: now },
-  };
-  const response = await firestoreFetch(collectionUrl(), { method: "POST", body: JSON.stringify({ fields }) }, authorization);
-  return fromDocument(await response.json() as Document);
+  // The submission and the submitter's counter are written together: the
+  // rules refuse one without the other, also for direct Firestore writes.
+  const limitName = `${documentsPath()}/submissionLimits/${submitterUid}`;
+  const limitUrl = `${documentsUrl()}/submissionLimits/${encodeURIComponent(submitterUid)}`;
+  const current = await firestoreFetch(limitUrl, { method: "GET" }, authorization)
+    .then((response) => response.json() as Promise<Document>)
+    .catch((error) => { if (error instanceof FirestoreError && error.status === 404) return null; throw error; });
+  const windowStart = current?.fields.windowStart?.timestampValue;
+  const sameWindow = Boolean(windowStart && Date.parse(windowStart) > Date.now() - SUBMISSION_WINDOW_MS);
+  const count = sameWindow ? Number(current?.fields.count?.integerValue ?? 0) + 1 : 1;
+  if (count > MAX_SUBMISSIONS_PER_WINDOW) throw new FirestoreError(429);
+
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  await commit([
+    {
+      update: { name: `${documentsPath()}/recipeSubmissions/${id}`, fields: { ...fieldsFrom({ ...values, status: "pending", submitterUid }), createdAt: { timestampValue: createdAt } } },
+      currentDocument: { exists: false },
+    },
+    {
+      update: { name: limitName, fields: { count: { integerValue: String(count) }, lastSubmissionId: { stringValue: id }, ...(sameWindow ? { windowStart: { timestampValue: windowStart } } : {}) } },
+      updateTransforms: [
+        { fieldPath: "lastAt", setToServerValue: "REQUEST_TIME" },
+        ...(sameWindow ? [] : [{ fieldPath: "windowStart", setToServerValue: "REQUEST_TIME" }]),
+      ],
+      currentDocument: current?.updateTime ? { updateTime: current.updateTime } : { exists: false },
+    },
+  ], authorization);
+  return { id };
 }
 
 export async function listFirestoreSubmissions(authorization: string) {
-  const submissions: RecipeSubmission[] = [];
-  let pageToken: string | undefined;
-  do {
-    const url = new URL(collectionUrl());
-    url.searchParams.set("pageSize", "100");
-    if (pageToken) url.searchParams.set("pageToken", pageToken);
-    const response = await firestoreFetch(url.toString(), { method: "GET" }, authorization);
-    const data = await response.json() as { documents?: Document[]; nextPageToken?: string };
-    submissions.push(...(data.documents ?? []).map(fromDocument));
-    pageToken = data.nextPageToken;
-  } while (pageToken);
-  return submissions.filter((submission) => submission.status === "pending").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const response = await firestoreFetch(`${documentsUrl()}:runQuery`, { method: "POST", body: JSON.stringify({ structuredQuery: {
+    from: [{ collectionId: "recipeSubmissions" }],
+    where: { fieldFilter: { field: { fieldPath: "status" }, op: "EQUAL", value: { stringValue: "pending" } } },
+    limit: 100,
+  } }) }, authorization);
+  const rows = await response.json() as Array<{ document?: Document }>;
+  return rows.flatMap((row) => row.document ? [fromDocument(row.document)] : []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function moderateFirestoreSubmission(id: string, action: "approve" | "reject", authorization: string): Promise<{ submission: RecipeSubmission; recipe?: Recipe }> {
-  const submissionUrl = `${collectionUrl()}/${encodeURIComponent(id)}`;
-  const currentResponse = await firestoreFetch(submissionUrl, { method: "GET" }, authorization);
+/** Moderation removes the proposal: approved ones become recipes, rejected ones disappear. */
+export async function moderateFirestoreSubmission(id: string, action: "approve" | "reject", authorization: string): Promise<{ recipe?: Recipe }> {
+  const currentResponse = await firestoreFetch(`${documentsUrl()}/recipeSubmissions/${encodeURIComponent(id)}`, { method: "GET" }, authorization);
   const current = await currentResponse.json() as Document;
-  const submission = fromDocument(current);
-  if (submission.status !== "pending" || !current.updateTime) throw new FirestoreError(409);
-
-  const reviewedAt = new Date().toISOString();
+  if (current.fields.status?.stringValue !== "pending" || !current.updateTime) throw new FirestoreError(409);
+  const removeSubmission = { delete: current.name, currentDocument: { updateTime: current.updateTime } };
   if (action === "reject") {
-    const url = new URL(submissionUrl);
-    ["status", "reviewedAt", "recipeId"].forEach((field) => url.searchParams.append("updateMask.fieldPaths", field));
-    url.searchParams.set("currentDocument.updateTime", current.updateTime);
-    const response = await firestoreFetch(url.toString(), { method: "PATCH", body: JSON.stringify({ fields: { status: { stringValue: "rejected" }, reviewedAt: { timestampValue: reviewedAt }, recipeId: { stringValue: "" } } }) }, authorization);
-    return { submission: fromDocument(await response.json() as Document) };
+    await commit([removeSubmission], authorization);
+    return {};
   }
 
+  const submission = fromDocument(current);
   const recipeId = `community-${id}`;
-  const recipeName = `projects/${projectId()}/databases/(default)/documents/recipes/${recipeId}`;
-  const recipeFields: Record<string, Value> = {
-    ...fieldsFrom({ title: submission.title, category: submission.category, description: submission.description, duration: submission.duration, servings: submission.servings, emoji: submission.emoji, ingredients: submission.ingredients, steps: submission.steps, contributor: submission.contributor }),
-    featured: { booleanValue: false },
-    createdAt: { timestampValue: reviewedAt },
-  };
-  const updatedSubmissionFields = { ...current.fields, status: { stringValue: "approved" }, reviewedAt: { timestampValue: reviewedAt }, recipeId: { stringValue: recipeId } };
-  const commitUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId())}/databases/(default)/documents:commit`;
-  await firestoreFetch(commitUrl, { method: "POST", body: JSON.stringify({ writes: [
-    { update: { name: recipeName, fields: recipeFields }, currentDocument: { exists: false } },
-    { update: { name: current.name, fields: updatedSubmissionFields }, currentDocument: { updateTime: current.updateTime } },
-  ] }) }, authorization);
-  return {
-    submission: { ...submission, status: "approved", reviewedAt, recipeId },
-    recipe: { id: recipeId, title: submission.title, category: submission.category, description: submission.description, duration: submission.duration, servings: submission.servings, emoji: submission.emoji, ingredients: submission.ingredients, steps: submission.steps, contributor: submission.contributor || undefined, featured: false },
-  };
+  const content = { title: submission.title, category: submission.category, description: submission.description, duration: submission.duration, servings: submission.servings, emoji: submission.emoji, ingredients: submission.ingredients, steps: submission.steps, contributor: submission.contributor };
+  await commit([
+    { update: { name: `${documentsPath()}/recipes/${recipeId}`, fields: { ...fieldsFrom(content), featured: { booleanValue: false }, createdAt: { timestampValue: new Date().toISOString() } } }, currentDocument: { exists: false } },
+    removeSubmission,
+  ], authorization);
+  return { recipe: { id: recipeId, ...content, contributor: submission.contributor || undefined, featured: false } };
 }
