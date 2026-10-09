@@ -1,15 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ShoppingBasket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { Recipe } from "@/lib/notion-recipes";
-import { recipeKey } from "@/lib/use-favorites";
+import { buildShoppingList, type ShoppingItem } from "@/lib/shopping-list";
 
 const STORAGE_KEY = "nico-shopping-checked";
-const ingredientsOf = (recipe: Recipe) => recipe.ingredients.split("\n").filter(Boolean);
-const itemKey = (recipe: Recipe, ingredient: string) => `${recipeKey(recipe)}::${ingredient}`;
 
 function readChecked(): string[] {
   try {
@@ -18,31 +16,28 @@ function readChecked(): string[] {
   } catch { return []; }
 }
 
-/** Shopping list built from the ingredients of the favorite recipes. Ticked items are remembered in this browser. */
+/** Shopping list of the favorite recipes, with quantities added up. Ticked items are remembered in this browser. */
 export function ShoppingListDialog({ recipes }: { recipes: Recipe[] }) {
   const [checked, setChecked] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
-  const listed = recipes.filter((recipe) => ingredientsOf(recipe).length > 0);
-  const total = listed.reduce((count, recipe) => count + ingredientsOf(recipe).length, 0);
-  const remaining = listed.reduce((count, recipe) => count + ingredientsOf(recipe).filter((ingredient) => !checked.includes(itemKey(recipe, ingredient))).length, 0);
+  const list = useMemo(() => buildShoppingList(recipes), [recipes]);
+  const everything = [...list.items, ...list.extras];
+  const remaining = everything.filter((item) => !checked.includes(item.key));
 
   function save(next: string[]) {
     setChecked(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* The ticks still apply to the current visit. */ }
   }
   function toggle(key: string) { save(checked.includes(key) ? checked.filter((item) => item !== key) : [...checked, key]); }
-
   // What is left to buy, as plain text to paste into a note or a message.
-  function remainingText() {
-    return listed.flatMap((recipe) => {
-      const items = ingredientsOf(recipe).filter((ingredient) => !checked.includes(itemKey(recipe, ingredient)));
-      return items.length ? [`${recipe.title}${recipe.servings !== "À préciser" ? ` (${recipe.servings})` : ""}`, ...items.map((item) => `- ${item}`), ""] : [];
-    }).join("\n").trim();
-  }
   async function copy() {
-    try { await navigator.clipboard.writeText(remainingText()); setCopied(true); setTimeout(() => setCopied(false), 2500); }
+    try { await navigator.clipboard.writeText(remaining.map((item) => `- ${item.label}`).join("\n")); setCopied(true); setTimeout(() => setCopied(false), 2500); }
     catch { setCopied(false); }
   }
+  const rows = (items: ShoppingItem[]) => <ul>{items.map((item) => <li key={item.key}><label>
+    <input type="checkbox" checked={checked.includes(item.key)} onChange={() => toggle(item.key)} />
+    <span>{item.label}<small>{item.recipes.join(" · ")}</small></span>
+  </label></li>)}</ul>;
 
   return <Dialog onOpenChange={(open) => { if (open) { setChecked(readChecked()); setCopied(false); } }}>
     <DialogTrigger asChild><button className="favorites-filter shopping-button"><ShoppingBasket size={17} aria-hidden="true" /> Liste de courses</button></DialogTrigger>
@@ -50,21 +45,17 @@ export function ShoppingListDialog({ recipes }: { recipes: Recipe[] }) {
       <DialogHeader>
         <p className="form-kicker">Mes favoris</p>
         <DialogTitle>Liste de courses</DialogTitle>
-        <DialogDescription>{listed.length === 0 ? "Ajoutez un cœur aux recettes qui vous font envie : leurs ingrédients apparaîtront ici." : `Les ingrédients de vos ${listed.length} recette${listed.length !== 1 ? "s" : ""} en favoris. Cochez ce que vous avez déjà.`}</DialogDescription>
+        <DialogDescription>{everything.length === 0 ? "Ajoutez un cœur aux recettes qui vous font envie : leurs ingrédients apparaîtront ici." : `Les ingrédients de vos ${recipes.length} recette${recipes.length !== 1 ? "s" : ""} en favoris, quantités additionnées. Cochez ce que vous avez déjà.`}</DialogDescription>
       </DialogHeader>
-      {listed.length > 0 && <>
-        <p className="shopping-count" role="status">{remaining === 0 ? "Tout est coché, bonnes courses !" : `${remaining} article${remaining !== 1 ? "s" : ""} à acheter sur ${total}`}</p>
-        <div className="shopping-list">{listed.map((recipe) => <section key={recipe.id} className="ingredients">
-          <h3>{recipe.title}</h3>
-          {recipe.servings !== "À préciser" && <p className="reading-hint">Pour {recipe.servings.toLowerCase()}</p>}
-          <ul>{ingredientsOf(recipe).map((ingredient, index) => {
-            const key = itemKey(recipe, ingredient);
-            return <li key={index}><label><input type="checkbox" checked={checked.includes(key)} onChange={() => toggle(key)} /><span>{ingredient}</span></label></li>;
-          })}</ul>
-        </section>)}</div>
+      {everything.length > 0 && <>
+        <p className="shopping-count" role="status">{remaining.length === 0 ? "Tout est coché, bonnes courses !" : `${remaining.length} article${remaining.length !== 1 ? "s" : ""} à acheter sur ${everything.length}`}</p>
+        <div className="shopping-list">
+          {list.items.length > 0 && <section className="ingredients">{rows(list.items)}</section>}
+          {list.extras.length > 0 && <section className="ingredients"><h3>À prévoir aussi</h3><p className="reading-hint">Sans quantité précise dans les recettes.</p>{rows(list.extras)}</section>}
+        </div>
         <DialogFooter className="recipe-actions">
-          <Button type="button" variant="outline" onClick={() => save([])} disabled={remaining === total}>Tout décocher</Button>
-          <Button type="button" onClick={copy} disabled={remaining === 0}>{copied ? "Liste copiée" : "Copier la liste"}</Button>
+          <Button type="button" variant="outline" onClick={() => save([])} disabled={remaining.length === everything.length}>Tout décocher</Button>
+          <Button type="button" onClick={copy} disabled={remaining.length === 0}>{copied ? "Liste copiée" : "Copier la liste"}</Button>
         </DialogFooter>
       </>}
     </DialogContent>
