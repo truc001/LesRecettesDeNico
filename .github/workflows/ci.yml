@@ -20,4 +20,8 @@ jobs:
       - run: npm test
       - run: npm run build
       # Security rules and the Firestore access code, against the local emulator.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
       - run: npm run test:emulator
