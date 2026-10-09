@@ -7,7 +7,7 @@ import { RecipeReading } from "@/components/recipe-reading";
 import { SiteBrand } from "@/components/site-brand";
 import { SiteFooter } from "@/components/site-footer";
 import { getRecipes } from "@/lib/recipes-cache";
-import { recipePath } from "@/lib/site";
+import { recipePath, sharingImage, siteName } from "@/lib/site";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -24,7 +24,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     title: recipe.title,
     description: recipe.description,
     alternates: { canonical: recipePath(recipe.id) },
-    openGraph: { type: "article", title: recipe.title, description: recipe.description, url: recipePath(recipe.id) },
+    // Next.js replaces the layout's openGraph as a whole, so the image is repeated here.
+    openGraph: { type: "article", locale: "fr_FR", siteName, title: recipe.title, description: recipe.description, url: recipePath(recipe.id), images: [sharingImage] },
   };
 }
 
