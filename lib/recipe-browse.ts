@@ -5,6 +5,8 @@ export const GROUPS = [
   { id: "petit-dejeuner", label: "Petit-déjeuner", chip: "Petit-déjeuner", categories: ["Petit-déjeuner"] },
   { id: "midi", label: "Repas du midi", chip: "Midi", categories: ["Repas du midi"] },
   { id: "soir", label: "Repas du soir", chip: "Soir", categories: ["Repas du soir"] },
+  // Dishes built to make children enjoy their vegetables.
+  { id: "enfants", label: "Pour les enfants", chip: "Enfants", categories: ["Enfant"] },
   { id: "desserts", label: "Desserts et gâteaux", chip: "Desserts", categories: ["Dessert", "Pâtisserie"] },
   { id: "boissons", label: "Boissons", chip: "Boissons", categories: ["Boisson"] },
   // Categories created later from the editor land here until they get a group of their own.
