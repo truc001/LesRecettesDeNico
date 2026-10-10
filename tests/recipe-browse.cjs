@@ -17,6 +17,7 @@ test('reads active cooking time and ignores resting time', () => {
 test('groups categories by moment, unknown ones apart', () => {
  assert.equal(groupOf({ category: 'Petit-déjeuner' }), 'petit-dejeuner');
  assert.equal(groupOf({ category: 'Dessert' }), 'desserts');
+ assert.equal(groupOf({ category: 'Enfant' }), 'enfants');
  assert.equal(groupOf({ category: 'pâtisserie' }), 'desserts');
  assert.equal(groupOf({ category: 'Pâte' }), 'autres');
 });
