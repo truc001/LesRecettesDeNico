@@ -4,18 +4,19 @@ import { ServiceWorker } from "@/components/service-worker";
 import { sharingImage, siteName, siteUrl } from "@/lib/site";
 import "./globals.css";
 
-const description = "Le carnet personnel de recettes de Nico.";
+const title = `${siteName} — recettes maison faciles pour tous les jours`;
+const description = "Des recettes maison simples et gourmandes : petits-déjeuners, repas du midi et du soir, légumes à faire aimer aux enfants, desserts et gâteaux. Avec un mode pas à pas et une liste de courses.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: { default: siteName, template: `%s — ${siteName}` },
+  title: { default: title, template: `%s — ${siteName}` },
   description,
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "fr_FR",
     siteName,
-    title: siteName,
+    title,
     description,
     url: "/",
     images: [sharingImage],

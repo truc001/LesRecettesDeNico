@@ -25,7 +25,8 @@ Pour faire tourner le site contre l’émulateur, définissez `FIRESTORE_EMULATO
 ## Pages
 
 - `/` : le carnet, rendu côté serveur avec les recettes déjà dans le HTML. Sans filtre, il présente six recettes par moment (petit-déjeuner, midi, soir, enfants, desserts…) ; les filtres sont dans l’adresse (`/?moment=desserts&temps=30&q=citron`), si bien que le bouton retour les restaure et qu’une vue filtrée se partage par un lien. Les moments et le filtre de temps sont définis dans `lib/recipe-browse.ts`.
-- `/recettes/<id>` : une page par recette, avec ses métadonnées de partage (Open Graph) et ses données structurées `Recipe`.
+- `/recettes/<id>` : une page par recette, avec ses métadonnées de partage (Open Graph) et ses données structurées `Recipe` (durée totale, date de publication, fil d’Ariane).
+- `/categories/<moment>` : une page par moment, qui liste toutes ses recettes. Son titre et son texte de présentation sont dans `app/categories/[id]/page.tsx` ; le pied de page y renvoie depuis tout le site.
 - `/sitemap.xml` et `/robots.txt` sont générés automatiquement. L’adresse publique vient de `NEXT_PUBLIC_SITE_URL`, ou à défaut du domaine de production Vercel.
 
 ## Favoris et liste de courses

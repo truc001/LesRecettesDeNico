@@ -37,6 +37,15 @@ export function durationMinutes(duration: string) {
   return Number(hours?.[1] ?? 0) * 60 + Number(minutes?.[1] ?? 0);
 }
 
+/** Minutes from start to table, resting time included: "20 min (plus 2 h au frais)" → 140. Null when a part is unknown ("plus une nuit de repos"). */
+export function totalMinutes(duration: string) {
+  const active = durationMinutes(duration);
+  const added = /\(plus ([^)]*)\)/.exec(duration);
+  if (active === null || !added) return active;
+  const rest = durationMinutes(added[1]);
+  return rest === null ? null : active + rest;
+}
+
 export function matchesFilters(recipe: Recipe, filters: BrowseFilters) {
   if (filters.group && groupOf(recipe) !== filters.group) return false;
   if (filters.tag && recipe.tag !== filters.tag) return false;
