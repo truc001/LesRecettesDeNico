@@ -3,16 +3,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { FavoriteButton } from "@/components/favorite-button";
 import { RecipeReading } from "@/components/recipe-reading";
 import { RecipeViewTracker } from "@/components/recipe-view-tracker";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { groupOf, GROUPS } from "@/lib/recipe-browse";
+import { groupOf, GROUPS, totalMinutes } from "@/lib/recipe-browse";
 import { recipePhoto } from "@/lib/recipe-photos";
 import { getRecipes } from "@/lib/recipes-cache";
-import { recipePath, sharingImage, siteName, siteUrl } from "@/lib/site";
+import { categoryPath, recipePath, sharingImage, siteName, siteUrl } from "@/lib/site";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -48,17 +48,31 @@ export default async function RecipePage(props: Props) {
   const moment = GROUPS.find((group) => group.id === groupOf(recipe))!;
   const photo = recipePhoto(recipe.id);
   const lines = (text: string) => text.split("\n").filter(Boolean);
+  const minutes = totalMinutes(recipe.duration);
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "Recipe",
-    name: recipe.title,
-    description: recipe.description,
-    recipeCategory: recipe.category,
-    ...(photo ? { image: `${siteUrl}${photo}` } : {}),
-    author: { "@type": "Person", name: recipe.contributor || "Nico" },
-    ...(recipe.servings !== "À préciser" ? { recipeYield: recipe.servings } : {}),
-    recipeIngredient: lines(recipe.ingredients),
-    recipeInstructions: lines(recipe.steps).map((text) => ({ "@type": "HowToStep", text })),
+    "@graph": [{
+      "@type": "Recipe",
+      name: recipe.title,
+      description: recipe.description,
+      url: `${siteUrl}${recipePath(recipe.id)}`,
+      recipeCategory: recipe.category,
+      keywords: [moment.label, ...(recipe.category === moment.label ? [] : [recipe.category]), ...(recipe.tag ? [recipe.tag] : [])].join(", "),
+      ...(photo ? { image: `${siteUrl}${photo}` } : {}),
+      author: { "@type": "Person", name: recipe.contributor || "Nico" },
+      ...(recipe.createdAt ? { datePublished: recipe.createdAt } : {}),
+      ...(minutes ? { totalTime: `PT${minutes}M` } : {}),
+      ...(recipe.servings !== "À préciser" ? { recipeYield: recipe.servings } : {}),
+      recipeIngredient: lines(recipe.ingredients),
+      recipeInstructions: lines(recipe.steps).map((text) => ({ "@type": "HowToStep", text })),
+    }, {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: siteName, item: siteUrl },
+        { "@type": "ListItem", position: 2, name: moment.label, item: `${siteUrl}${categoryPath(moment.id)}` },
+        { "@type": "ListItem", position: 3, name: recipe.title },
+      ],
+    }],
   };
   return <>
     <SiteHeader />
@@ -84,6 +98,7 @@ export default async function RecipePage(props: Props) {
             <small>{other.duration === "À préciser" ? other.category : other.duration}</small>
           </Link>;
         })}</div>
+        <Link className="see-all" href={categoryPath(moment.id)}>Toutes les recettes : {moment.label} <ArrowRight size={16} aria-hidden="true" /></Link>
       </aside>}
       <RecipeViewTracker id={String(recipe.id)} title={recipe.title} category={recipe.category} />
       {/* Recipe text never contains "<" (see lib/recipe-input.ts); escaped anyway. */}

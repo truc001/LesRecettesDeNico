@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { durationMinutes, groupOf, matchesFilters, featuredFirst } = require('./load-ts.cjs')('lib/recipe-browse.ts');
+const { durationMinutes, totalMinutes, groupOf, matchesFilters, featuredFirst } = require('./load-ts.cjs')('lib/recipe-browse.ts');
 const recipe = extra => ({ id: 'r', title: 'Tarte aux pommes', category: 'Pâtisserie', description: 'Une tarte', duration: '1 h', servings: '8 parts', emoji: 'x', ingredients: '5 pommes\n1 pâte brisée', steps: 'Cuire', ...extra });
 const none = { group: '', time: '', query: '', tag: '' };
 
@@ -12,6 +12,15 @@ test('reads active cooking time and ignores resting time', () => {
  assert.equal(durationMinutes('1 h 15'), 75);
  assert.equal(durationMinutes('20 min (plus 3 h au frais)'), 20);
  assert.equal(durationMinutes('À préciser'), null);
+});
+
+test('adds resting time to the total, unless it is unknown', () => {
+ assert.equal(totalMinutes('25 min'), 25);
+ assert.equal(totalMinutes('20 min (plus 3 h au frais)'), 200);
+ assert.equal(totalMinutes('30 min (plus 1 h 30 de repos)'), 120);
+ assert.equal(totalMinutes('2 h 35 min (dont 2 h de repos)'), 155);
+ assert.equal(totalMinutes('5 min (plus une nuit de repos)'), null);
+ assert.equal(totalMinutes('À préciser'), null);
 });
 
 test('groups categories by moment, unknown ones apart', () => {

@@ -13,6 +13,8 @@ export type Recipe = {
   tag?: string;
   sourceId?: string;
   featured?: boolean;
+  /** ISO date the recipe entered the carnet. */
+  createdAt?: string;
 };
 
 /** Recettes importées du Livre de recettes Notion de Nico le 13 septembre 2026. */
