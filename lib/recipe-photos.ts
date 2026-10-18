@@ -188,6 +188,7 @@ const photoIds = new Set<string>([
   "idee-wrap-poulet-crudites",
   "idee-wraps-colores-au-poivron-doux",
   "madeleines-pur-beurre",
+  "mes-mini-crepes-du-dimanche",
   "notion-cake-citron-pavot",
   "notion-cocktail-halloween",
   "notion-gateau-banane",
@@ -196,7 +197,8 @@ const photoIds = new Set<string>([
   "notion-moelleux-chocolat",
   "notion-muffin-potimaron",
   "notion-pate-flamekueche",
-  "notion-super-cookies"
+  "notion-super-cookies",
+  "tarte-rustique-butternut-lardons-oignons-confits"
 ]);
 
 /** Path of the recipe's photo (public/photos/<id>.jpg, 900 × 600), or null when it has none yet. */
