@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { FirebaseAnalytics } from "@/components/firebase-analytics";
 import { ServiceWorker } from "@/components/service-worker";
 import { sharingImage, siteName, siteUrl } from "@/lib/site";
@@ -34,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className="antialiased">{children}<FirebaseAnalytics /><ServiceWorker /></body>
+      <body className="antialiased">{children}<FirebaseAnalytics /><Analytics /><ServiceWorker /></body>
     </html>
   );
 }
