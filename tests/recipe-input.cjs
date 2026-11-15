@@ -17,7 +17,7 @@ test('normalizes safe recipe text without interpreting it', () => {
  assert.equal(result.ingredients,'Pommes\nFarine');
 });
 
-test('turns pasted tabs into spaces, which the Firestore rules accept', () => {
+test('turns pasted tabs into spaces, which the database constraints accept', () => {
  assert.equal(parseRecipeInput({...valid,ingredients:'Farine\t\t200 g\nSucre\t50 g'},true).ingredients,'Farine 200 g\nSucre 50 g');
 });
 

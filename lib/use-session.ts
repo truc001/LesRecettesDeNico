@@ -5,7 +5,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { fetchIsAdmin } from "@/lib/admin-api";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 
-/** Signed-in Google user, and whether Firestore treats them as the administrator. */
+/** Signed-in Google user, and whether the server treats them as the administrator. */
 export function useSession() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
