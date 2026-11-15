@@ -14,13 +14,12 @@ npm run dev
 ```bash
 npm run lint
 npm run typecheck
-npm test                # tests unitaires
-npm run test:emulator   # règles Firestore et accès Firestore, dans l’émulateur local (Java requis)
+npm test                # tests unitaires, et accès à la base contre un Postgres en mémoire
 ```
 
-Le test `test:emulator` utilise uniquement le projet de démonstration local `demo-nico-firestore`. Il vérifie les règles de sécurité (accès publics, écritures administrateur, refus, validation, limite d’envoi) puis exécute le vrai code de `lib/` contre l’émulateur. Les mêmes commandes tournent dans GitHub Actions (`.github/workflows/ci.yml`).
+`npm test` exécute le vrai code de `lib/` et le script de migration contre PGlite, un Postgres en mémoire chargé avec `db/schema.sql` : création, modification, suppression, contraintes du schéma, limite des propositions et modération. Aucune base réelle n’est touchée. Les mêmes commandes tournent dans GitHub Actions (`.github/workflows/ci.yml`).
 
-Pour faire tourner le site contre l’émulateur, définissez `FIRESTORE_EMULATOR_HOST=127.0.0.1:8085` et `NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-nico-firestore`.
+Pour faire tourner le site en local, définissez `DATABASE_URL` avec la chaîne de connexion d’une branche Neon de développement, jamais celle de production.
 
 ## Pages
 
@@ -47,27 +46,36 @@ Chaque recette peut avoir une photo `public/photos/<identifiant>.jpg` (900 × 60
 
 ## Base de données
 
-Les recettes sont stockées dans **Cloud Firestore Standard**, collection `recipes`, base `(default)` du projet `lesrecettesdenico-51466`, région **Paris — europe-west9**. Le projet reste sur le forfait **Spark**, sans facturation activée.
+Les recettes sont stockées dans **Neon** (Postgres), projet `les-recettes-de-nico` à Francfort (`aws-eu-central-1`). Sa chaîne de connexion est la variable `DATABASE_URL`. Le schéma est dans `db/schema.sql` : tables `recipes`, `recipe_submissions` et `submission_limits`. Le site y accède par le pilote HTTP `@neondatabase/serverless` (`lib/db.ts`), avec des requêtes paramétrées.
 
-Les neuf recettes Notion ont été importées avec leurs identifiants d’origine. Le site lit exclusivement Firestore : le fichier `lib/notion-recipes.ts` est conservé comme archive d’import, sans servir de données de secours à l’application. Aucune variable `DATABASE_URL` n’est nécessaire.
+Les lectures passent par un cache serveur de 60 secondes, partagé par les pages et l’API, et invalidé après chaque écriture. La recherche et les favoris ne produisent pas de lectures supplémentaires.
 
-Les lectures passent par un cache serveur de 60 secondes, partagé par les pages et l’API, et invalidé après chaque écriture. La recherche et les favoris ne produisent pas de lectures Firestore supplémentaires. Le quota gratuit Standard inclut 1 Gio de stockage, 50 000 lectures et 20 000 écritures par jour ; sur Spark, un dépassement limite le service sans activer une facturation. Voir https://firebase.google.com/docs/firestore/quotas.
+Le serveur valide chaque texte (`lib/recipe-input.ts`) et le schéma applique les mêmes bornes par des contraintes : longueurs maximales, pas de balises, de caractères de contrôle invisibles ni de protocole exécutable. Elles valent donc aussi pour une écriture directe en SQL.
 
-Les règles `firestore.rules` autorisent la lecture publique des recettes, et leur création, modification et suppression uniquement avec le compte Google vérifié `appcraft31@gmail.com`. Les textes sont bornés et la date de création est immuable.
+Les propositions de la communauté sont limitées à **5 par compte Google et par 24 heures**. Le compteur `submission_limits` et la proposition sont écrits dans une seule instruction SQL, qui verrouille le compteur : deux envois simultanés ne peuvent pas dépasser la limite, et une proposition n’est jamais enregistrée sans être comptée. Une proposition validée devient une recette et une proposition refusée est supprimée ; dans les deux cas elle quitte `recipe_submissions`.
 
-Les propositions de la communauté (`recipeSubmissions`) sont limitées à **5 par compte Google et par 24 heures**. La limite est appliquée par les règles elles-mêmes, grâce au compteur `submissionLimits/<uid>` écrit dans la même opération : elle vaut donc aussi pour une écriture directe dans Firestore. Une proposition validée devient une recette et une proposition refusée est supprimée ; dans les deux cas elle disparaît de `recipeSubmissions`.
+Après toute modification de `db/schema.sql`, appliquez-la avec `npm run db:migrate` (voir ci-dessous) : le schéma est idempotent.
 
-Après toute modification de `firestore.rules`, déployez les règles :
+Les neuf recettes Notion d’origine gardent leurs identifiants. Le fichier `lib/notion-recipes.ts` est conservé comme archive d’import, sans servir de données de secours.
+
+### Bascule depuis Firestore
+
+Jusqu’en novembre 2026, les recettes étaient dans Cloud Firestore (projet `lesrecettesdenico-51466`). `npm run db:migrate` (`tools/migrate-to-neon.mjs`) applique le schéma, copie toutes les recettes de Firestore dans Neon en gardant leurs identifiants et leurs dates, puis vérifie que chacune est identique des deux côtés. Les propositions en attente et leurs compteurs, privés, ne sont copiés qu’avec un jeton Google administrateur. Le script ne supprime jamais rien dans Firestore et peut être relancé : il met à jour ce qui a changé entre-temps.
 
 ```bash
-npx -y firebase-tools@latest deploy --only firestore --project lesrecettesdenico-51466
+# Ce qui serait copié, sans écrire dans Neon :
+GOOGLE_ACCESS_TOKEN=$(gcloud auth print-access-token) npm run db:migrate -- --dry-run
+# La copie :
+DATABASE_URL='postgresql://…' GOOGLE_ACCESS_TOKEN=$(gcloud auth print-access-token) npm run db:migrate
 ```
+
+Après la mise en production, Firestore n’est plus lu. Ses données restent en l’état comme sauvegarde ; `firestore.rules` et `firebase.json` décrivent encore cette base et pourront être retirés quand elle sera supprimée. Firebase reste utilisé pour la connexion Google.
 
 ## Administration avec Google
 
-La lecture du carnet est publique. Le serveur Vercel vérifie chaque jeton Firebase à partir des certificats publics Google, puis le transmet à Firestore, qui applique ses règles. Aucun compte de service ni clé privée n’est nécessaire.
+La lecture du carnet est publique. Le serveur Vercel vérifie chaque jeton Firebase à partir des certificats publics Google, puis n’autorise les écritures et la modération qu’au compte administrateur. Aucun compte de service ni clé privée n’est nécessaire.
 
-L’administrateur est défini à un seul endroit : la fonction `isAdmin()` de `firestore.rules`. Pour le changer, modifiez cette adresse et redéployez les règles. L’ancienne variable `ADMIN_EMAILS` n’est plus lue et peut être retirée de Vercel.
+L’administrateur est défini à un seul endroit : `ADMIN_EMAIL` dans `lib/admin.ts`. Pour le changer, modifiez cette adresse et redéployez le site. L’ancienne variable `ADMIN_EMAILS` n’est plus lue et peut être retirée de Vercel.
 
 Depuis le site, l’administrateur peut ajouter, modifier et supprimer une recette, cocher « Le choix de Nico » et valider ou refuser les propositions. Chaque recette peut porter une étiquette libre (par exemple `deNico`), affichée sur sa carte et proposée comme filtre dans le carnet.
 
@@ -84,6 +92,8 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 # Facultatif : active Firebase Analytics (avec consentement).
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
+# Chaîne de connexion Neon.
+DATABASE_URL=
 # Facultatif : adresse publique du site, si elle diffère du domaine de production Vercel.
 NEXT_PUBLIC_SITE_URL=
 ```

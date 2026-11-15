@@ -7,7 +7,7 @@ import { categoryPath, recipePath, siteUrl } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // If Firestore is unreachable, the home page alone is still a valid sitemap.
+  // If the database is unreachable, the home page alone is still a valid sitemap.
   const recipes = await getRecipes().catch(() => []);
   // Recipes come newest first: a list changed last when its first recipe was added.
   const changed = (list: typeof recipes) => list[0]?.createdAt ? { lastModified: list[0].createdAt } : {};

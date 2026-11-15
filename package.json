@@ -11,11 +11,12 @@
     "start": "next start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/recipe-input.cjs tests/firestore-store.cjs tests/shopping-list.cjs tests/recipe-browse.cjs tests/cooking.cjs",
-    "test:emulator": "npx -y firebase-tools@latest emulators:exec --only firestore --project demo-nico-firestore \"node tests/firestore-rules.cjs && node tests/firestore-emulator.cjs\"",
-    "photos": "node tools/list-photos.cjs"
+    "test": "node --test tests/recipe-input.cjs tests/neon-store.cjs tests/admin.cjs tests/shopping-list.cjs tests/recipe-browse.cjs tests/cooking.cjs",
+    "photos": "node tools/list-photos.cjs",
+    "db:migrate": "node tools/migrate-to-neon.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "1.2.0",
     "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
@@ -29,6 +30,7 @@
     "tailwind-merge": "3.6.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.11",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",

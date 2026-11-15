@@ -1,7 +1,8 @@
 import { readJsonBody, signInRequired } from "@/lib/api-request";
+import { isAdmin } from "@/lib/admin";
+import { StoreError } from "@/lib/db";
 import { getFirebaseUser } from "@/lib/firebase-token";
-import { createFirestoreSubmission, listFirestoreSubmissions } from "@/lib/firestore-submissions";
-import { FirestoreError } from "@/lib/firestore-recipes";
+import { createSubmission, listSubmissions } from "@/lib/submissions-store";
 import { assertAllowedKeys, parseRecipeInput, RecipeInputError } from "@/lib/recipe-input";
 
 const maxBodyBytes = 20 * 1024;
@@ -15,14 +16,16 @@ function sameOrigin(request: Request) {
 
 function errorResponse(error: unknown) {
   if (error instanceof RecipeInputError) return Response.json({ error: error.message }, { status: 400 });
-  if (error instanceof FirestoreError && error.status === 429) return Response.json({ error: "Vous avez déjà proposé 5 recettes aujourd’hui. Revenez demain pour en partager d’autres." }, { status: 429 });
-  if (error instanceof FirestoreError && [401, 403].includes(error.status)) return Response.json({ error: "Votre compte Google n’est pas autorisé à effectuer cette action." }, { status: 403 });
+  if (error instanceof StoreError && error.status === 429) return Response.json({ error: "Vous avez déjà proposé 5 recettes aujourd’hui. Revenez demain pour en partager d’autres." }, { status: 429 });
+  if (error instanceof StoreError && error.status === 400) return Response.json({ error: "Données de recette invalides." }, { status: 400 });
   return Response.json({ error: "Impossible d’enregistrer la proposition pour le moment." }, { status: 503 });
 }
 
 export async function GET(request: Request) {
-  if (!await getFirebaseUser(request)) return signInRequired();
-  try { return Response.json({ submissions: await listFirestoreSubmissions(request.headers.get("authorization")!) }); }
+  const user = await getFirebaseUser(request);
+  if (!user) return signInRequired();
+  if (!isAdmin(user)) return Response.json({ error: "Votre compte Google n’est pas autorisé à effectuer cette action." }, { status: 403 });
+  try { return Response.json({ submissions: await listSubmissions() }); }
   catch (error) { return errorResponse(error); }
 }
 
@@ -36,7 +39,7 @@ export async function POST(request: Request) {
     assertAllowedKeys(body, ["title", "category", "description", "duration", "servings", "ingredients", "steps", "contributor", "website"]);
     if (typeof body.website === "string" && body.website.trim()) return Response.json({ submitted: true }, { status: 201 });
     const values = parseRecipeInput({ ...body, emoji: "🍽️" }, true);
-    const submission = await createFirestoreSubmission(values, user.uid, request.headers.get("authorization")!);
+    const submission = await createSubmission(values, user.uid);
     return Response.json({ submitted: true, id: submission.id }, { status: 201 });
   } catch (error) { return errorResponse(error); }
 }

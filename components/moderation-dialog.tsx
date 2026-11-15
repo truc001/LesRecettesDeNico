@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import type { Recipe } from "@/lib/notion-recipes";
-import type { RecipeSubmission } from "@/lib/firestore-submissions";
+import type { RecipeSubmission } from "@/lib/submissions-store";
 
 export function ModerationDialog({ onPublished }: { onPublished: (recipe: Recipe) => void }) {
   const [submissions, setSubmissions] = useState<RecipeSubmission[]>([]);
